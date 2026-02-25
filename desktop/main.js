@@ -389,14 +389,16 @@ async function switchToNewPort(currentPort) {
     return false;
 }
 
-// 创建启动画面
+// 创建启动画面（带终端输出）
 function createSplashWindow() {
     splashWindow = new BrowserWindow({
-        width: 400,
-        height: 300,
+        width: 800,
+        height: 600,
         frame: false,
-        transparent: true,
-        alwaysOnTop: true,
+        transparent: false,
+        backgroundColor: '#1a1a1a',
+        alwaysOnTop: false,
+        show: true,
         webPreferences: {
             nodeIntegration: true,
             contextIsolation: false
@@ -595,6 +597,12 @@ function startPythonServer() {
             args.push('--enable-auth');
         }
 
+        // 发送启动日志到 splash 窗口
+        sendSplashLog(`** Python executable: ${pythonPath}`);
+        sendSplashLog(`** ComfyUI Path: ${comfyuiPath}`);
+        sendSplashLog(`** Starting server on port: ${SERVER_PORT}`);
+        sendSplashLog(`[START] Launching ComfyUI server...`);
+
         console.log(`Starting ComfyUI: ${pythonPath} ${args.join(' ')}`);
         console.log(`Working directory: ${comfyuiPath}`);
 
@@ -604,21 +612,39 @@ function startPythonServer() {
         });
 
         pythonProcess.stdout.on('data', (data) => {
-            const output = data.toString();
+            const output = data.toString().trim();
             console.log(`[ComfyUI] ${output}`);
+            
+            // 将日志发送到启动画面
+            output.split('\n').forEach(line => {
+                if (line.trim()) {
+                    sendSplashLog(line);
+                }
+            });
             
             // 检测服务器启动成功
             if (output.includes('To see the GUI go to')) {
+                sendSplashLog('[DONE] ComfyUI server started successfully!');
+                updateSplashProgress('Starting ComfyUI', 'Server is ready!', 100);
                 resolve();
             }
         });
 
         pythonProcess.stderr.on('data', (data) => {
-            console.error(`[ComfyUI Error] ${data}`);
+            const output = data.toString().trim();
+            console.error(`[ComfyUI Error] ${output}`);
+            
+            // stderr 也发送到启动画面（很多正常日志也输出到 stderr）
+            output.split('\n').forEach(line => {
+                if (line.trim()) {
+                    sendSplashLog(line);
+                }
+            });
         });
 
         pythonProcess.on('error', (err) => {
             console.error('Failed to start Python process:', err);
+            sendSplashLog(`[ERROR] Failed to start Python: ${err.message}`);
             reject(err);
         });
 
@@ -701,47 +727,83 @@ function updateSplashStatus(message) {
     }
 }
 
+// 发送日志到启动画面
+function sendSplashLog(message) {
+    if (splashWindow && !splashWindow.isDestroyed()) {
+        splashWindow.webContents.send('log', message);
+    }
+}
+
+// 更新启动画面进度
+function updateSplashProgress(title, message, percent = null) {
+    if (splashWindow && !splashWindow.isDestroyed()) {
+        splashWindow.webContents.send('progress', { title, message, percent });
+    }
+}
+
 // 正常启动流程
 async function normalStartup() {
     // 显示启动画面
     createSplashWindow();
-    updateSplashStatus('正在初始化...');
+    
+    // 添加初始化日志
+    const startTime = new Date().toISOString().replace('T', ' ').slice(0, 19);
+    sendSplashLog(`** ComfyUI startup time: ${startTime}`);
+    sendSplashLog(`** Platform: ${process.platform === 'darwin' ? 'Darwin' : process.platform}`);
+    sendSplashLog(`** Architecture: ${process.arch}`);
+    sendSplashLog(`Setting output directory to: ${path.join(getResourcePath(), 'output')}`);
+    sendSplashLog(`Setting input directory to: ${path.join(getResourcePath(), 'input')}`);
+    sendSplashLog(`Setting user directory to: ${path.join(getResourcePath(), 'user')}`);
+    
+    updateSplashProgress('Starting ComfyUI', '正在初始化...');
     
     // 检查端口是否可用
-    updateSplashStatus('正在检查端口...');
+    sendSplashLog(`[START] Checking port ${SERVER_PORT}...`);
+    updateSplashProgress('Starting ComfyUI', '正在检查端口...');
     const portAvailable = await ensurePortAvailable(SERVER_PORT);
     if (!portAvailable) {
+        sendSplashLog(`[ERROR] Port ${SERVER_PORT} is not available`);
         if (splashWindow && !splashWindow.isDestroyed()) {
             splashWindow.close();
         }
         return; // 用户取消或重启应用
     }
+    sendSplashLog(`[DONE] Port ${SERVER_PORT} is available`);
     
     // 创建主窗口（但不显示）
     createMainWindow();
     
     try {
         // 启动 Python 后端
-        updateSplashStatus('正在启动 ComfyUI 服务...');
+        sendSplashLog(`[START] Starting ComfyUI server...`);
+        updateSplashProgress('Starting ComfyUI', '正在启动 ComfyUI 服务...');
         await startPythonServer();
         
-        updateSplashStatus('正在加载界面...');
+        sendSplashLog(`[START] Loading user interface...`);
+        updateSplashProgress('Starting ComfyUI', '正在加载界面...');
         
         // 等待服务器完全就绪
         await checkServerReady();
+        
+        sendSplashLog(`[DONE] Server is ready, loading UI...`);
         
         // 加载主界面
         mainWindow.loadURL(SERVER_URL);
         
         // 页面加载完成后显示
         mainWindow.webContents.on('did-finish-load', () => {
-            // 关闭启动画面
-            if (splashWindow && !splashWindow.isDestroyed()) {
-                splashWindow.close();
-            }
-            // 显示主窗口
-            mainWindow.show();
-            mainWindow.focus();
+            sendSplashLog(`[DONE] UI loaded successfully!`);
+            
+            // 延迟关闭启动画面，让用户看到完成状态
+            setTimeout(() => {
+                // 关闭启动画面
+                if (splashWindow && !splashWindow.isDestroyed()) {
+                    splashWindow.close();
+                }
+                // 显示主窗口
+                mainWindow.show();
+                mainWindow.focus();
+            }, 500);
         });
         
         // 创建托盘
@@ -749,16 +811,23 @@ async function normalStartup() {
         
     } catch (error) {
         console.error('Startup error:', error);
+        sendSplashLog(`[ERROR] ${error.message}`);
         
-        if (splashWindow && !splashWindow.isDestroyed()) {
-            splashWindow.close();
-        }
+        // 不立即关闭，让用户看到错误信息
+        updateSplashProgress('启动失败', error.message);
         
-        dialog.showErrorBox(
-            '启动失败',
-            `无法启动 ComfyUI 服务:\n${error.message}\n\n请检查 Python 环境是否正确配置。`
-        );
-        app.quit();
+        // 5秒后关闭并显示错误
+        setTimeout(() => {
+            if (splashWindow && !splashWindow.isDestroyed()) {
+                splashWindow.close();
+            }
+            
+            dialog.showErrorBox(
+                '启动失败',
+                `无法启动 ComfyUI 服务:\n${error.message}\n\n请检查 Python 环境是否正确配置。`
+            );
+            app.quit();
+        }, 3000);
     }
 }
 
