@@ -516,14 +516,14 @@ class AutoInstaller {
                 '--trusted-host', new URL(pypiMirror).hostname
             ], {
                 cwd: this.comfyuiPath,
-                env: { ...process.env }
+                env: { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONLEGACYWINDOWSSTDIO: 'utf-8' }
             });
             
             return new Promise((resolve, reject) => {
                 let lastLog = '';
                 
                 child.stdout.on('data', (data) => {
-                    const output = data.toString().trim();
+                    const output = data.toString('utf-8').trim();
                     if (output && output !== lastLog) {
                         lastLog = output;
                         // 只记录重要信息
@@ -534,7 +534,7 @@ class AutoInstaller {
                 });
                 
                 child.stderr.on('data', (data) => {
-                    const output = data.toString().trim();
+                    const output = data.toString('utf-8').trim();
                     if (output && !output.includes('WARNING')) {
                         this.onLog(`  [stderr] ${output}`);
                     }

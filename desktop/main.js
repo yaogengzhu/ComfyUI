@@ -12,6 +12,11 @@ const http = require('http');
 const net = require('net');
 const Store = require('electron-store');
 
+// Windows 终端编码修复：设置为 UTF-8
+if (process.platform === 'win32') {
+    try { execSync('chcp 65001', { stdio: 'pipe' }); } catch (e) { /* ignore */ }
+}
+
 // 自动安装器
 const AutoInstaller = require('./scripts/auto-installer.js');
 
@@ -422,12 +427,12 @@ async function installAllDependencies(onProgress) {
     try {
         const child = spawn(pythonPath, ['-m', 'pip', 'install', '-r', requirementsPath], {
             cwd: comfyuiPath,
-            env: { ...process.env }
+            env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
         });
         
         return new Promise((resolve, reject) => {
             child.stdout.on('data', (data) => {
-                const output = data.toString().trim();
+                const output = data.toString('utf-8').trim();
                 console.log(`[pip] ${output}`);
                 if (onProgress && output.includes('Successfully installed')) {
                     onProgress(output, 100);
@@ -435,7 +440,7 @@ async function installAllDependencies(onProgress) {
             });
             
             child.stderr.on('data', (data) => {
-                const output = data.toString().trim();
+                const output = data.toString('utf-8').trim();
                 console.log(`[pip] ${output}`);
             });
             
@@ -912,11 +917,15 @@ function startPythonServer() {
 
         pythonProcess = spawn(pythonPath, args, {
             cwd: comfyuiPath,
-            env: { ...process.env }
+            env: {
+                ...process.env,
+                PYTHONIOENCODING: 'utf-8',
+                PYTHONLEGACYWINDOWSSTDIO: 'utf-8'
+            }
         });
 
         pythonProcess.stdout.on('data', (data) => {
-            const output = data.toString().trim();
+            const output = data.toString('utf-8').trim();
             console.log(`[ComfyUI] ${output}`);
             
             // 将日志发送到启动画面
@@ -935,7 +944,7 @@ function startPythonServer() {
         });
 
         pythonProcess.stderr.on('data', (data) => {
-            const output = data.toString().trim();
+            const output = data.toString('utf-8').trim();
             console.error(`[ComfyUI Error] ${output}`);
             
             // stderr 也发送到启动画面（很多正常日志也输出到 stderr）
