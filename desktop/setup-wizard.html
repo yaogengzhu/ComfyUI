@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ComfyUI 设置向导</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            background: #1a1a2e;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            color: #fff;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .wizard-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .wizard-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .wizard-header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #00d4ff, #7b2cbf);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .wizard-header p {
+            color: #8892b0;
+            font-size: 1.1em;
+        }
+
+        /* 步骤指示器 */
+        .steps-indicator {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 40px;
+        }
+
+        .step-item {
+            display: flex;
+            align-items: center;
+        }
+
+        .step-circle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #2d3748;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .step-item.active .step-circle {
+            background: linear-gradient(135deg, #00d4ff, #7b2cbf);
+        }
+
+        .step-item.completed .step-circle {
+            background: #10b981;
+        }
+
+        .step-line {
+            width: 80px;
+            height: 3px;
+            background: #2d3748;
+            margin: 0 10px;
+        }
+
+        .step-item.completed + .step-item .step-line,
+        .step-item.active .step-line {
+            background: linear-gradient(90deg, #10b981, #00d4ff);
+        }
+
+        /* 步骤内容 */
+        .step-content {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .step-content h2 {
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        .step-content p {
+            color: #8892b0;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+
+        /* 环境检测 */
+        .env-check-list {
+            list-style: none;
+        }
+
+        .env-check-item {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 10px;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .env-check-item.checking {
+            opacity: 0.7;
+        }
+
+        .env-check-item.success {
+            border-left: 3px solid #10b981;
+        }
+
+        .env-check-item.error {
+            border-left: 3px solid #ef4444;
+        }
+
+        .env-check-item.warning {
+            border-left: 3px solid #f59e0b;
+        }
+
+        .env-icon {
+            width: 24px;
+            height: 24px;
+            margin-right: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .env-icon .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #4a5568;
+            border-top-color: #00d4ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .env-info {
+            flex: 1;
+        }
+
+        .env-info .label {
+            font-weight: 500;
+        }
+
+        .env-info .detail {
+            font-size: 0.85em;
+            color: #8892b0;
+        }
+
+        /* 模型列表 */
+        .model-category {
+            margin-bottom: 25px;
+        }
+
+        .model-category h3 {
+            font-size: 1.1em;
+            margin-bottom: 10px;
+            color: #00d4ff;
+        }
+
+        .model-item {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 10px;
+            margin-bottom: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .model-item:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .model-checkbox {
+            width: 22px;
+            height: 22px;
+            margin-right: 15px;
+            accent-color: #00d4ff;
+        }
+
+        .model-info {
+            flex: 1;
+        }
+
+        .model-info .name {
+            font-weight: 500;
+        }
+
+        .model-info .desc {
+            font-size: 0.85em;
+            color: #8892b0;
+        }
+
+        .model-size {
+            background: rgba(0, 212, 255, 0.2);
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 0.8em;
+            color: #00d4ff;
+        }
+
+        .model-status {
+            margin-left: 10px;
+            font-size: 1.2em;
+        }
+
+        /* 进度条 */
+        .progress-section {
+            margin-top: 20px;
+        }
+
+        .progress-item {
+            margin-bottom: 15px;
+        }
+
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: #2d3748;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+
+        /* 按钮 */
+        .button-group {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #00d4ff, #7b2cbf);
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0, 212, 255, 0.3);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-skip {
+            background: transparent;
+            color: #8892b0;
+        }
+
+        .btn-skip:hover {
+            color: #fff;
+        }
+
+        /* 完成页面 */
+        .completion-icon {
+            width: 100px;
+            height: 100px;
+            margin: 0 auto 30px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3em;
+        }
+
+        .completion-message {
+            text-align: center;
+        }
+
+        .completion-message h2 {
+            font-size: 2em;
+            margin-bottom: 15px;
+        }
+
+        .completion-message p {
+            color: #8892b0;
+            margin-bottom: 30px;
+        }
+
+        /* 隐藏步骤 */
+        .step-panel {
+            display: none;
+        }
+
+        .step-panel.active {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* 设置选项 */
+        .settings-group {
+            margin-bottom: 20px;
+        }
+
+        .settings-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .settings-group input[type="text"],
+        .settings-group select {
+            width: 100%;
+            padding: 12px 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            color: #fff;
+            font-size: 1em;
+        }
+
+        .settings-group input[type="text"]:focus,
+        .settings-group select:focus {
+            outline: none;
+            border-color: #00d4ff;
+        }
+
+        .settings-hint {
+            font-size: 0.85em;
+            color: #8892b0;
+            margin-top: 5px;
+        }
+
+        .toggle-switch {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
+
+        .toggle-switch input[type="checkbox"] {
+            width: 50px;
+            height: 26px;
+            appearance: none;
+            background: #2d3748;
+            border-radius: 13px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .toggle-switch input[type="checkbox"]:checked {
+            background: linear-gradient(135deg, #00d4ff, #7b2cbf);
+        }
+
+        .toggle-switch input[type="checkbox"]::before {
+            content: '';
+            position: absolute;
+            width: 22px;
+            height: 22px;
+            background: #fff;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.3s;
+        }
+
+        .toggle-switch input[type="checkbox"]:checked::before {
+            transform: translateX(24px);
+        }
+    </style>
+</head>
+<body>
+    <div class="wizard-container">
+        <div class="wizard-header">
+            <h1>🎨 ComfyUI 设置向导</h1>
+            <p>让我们一起配置您的 AI 图像生成环境</p>
+        </div>
+
+        <!-- 步骤指示器 -->
+        <div class="steps-indicator">
+            <div class="step-item active" data-step="1">
+                <div class="step-circle">1</div>
+            </div>
+            <div class="step-line"></div>
+            <div class="step-item" data-step="2">
+                <div class="step-circle">2</div>
+            </div>
+            <div class="step-line"></div>
+            <div class="step-item" data-step="3">
+                <div class="step-circle">3</div>
+            </div>
+            <div class="step-line"></div>
+            <div class="step-item" data-step="4">
+                <div class="step-circle">4</div>
+            </div>
+        </div>
+
+        <!-- 步骤 1: 环境检测 -->
+        <div class="step-panel active" id="step-1">
+            <div class="step-content">
+                <h2>🔍 环境检测</h2>
+                <p>正在检查您的系统环境，确保 ComfyUI 可以正常运行。</p>
+
+                <ul class="env-check-list" id="env-checks">
+                    <li class="env-check-item checking" data-check="python">
+                        <div class="env-icon"><div class="spinner"></div></div>
+                        <div class="env-info">
+                            <div class="label">Python 环境</div>
+                            <div class="detail">检查中...</div>
+                        </div>
+                    </li>
+                    <li class="env-check-item checking" data-check="pytorch">
+                        <div class="env-icon"><div class="spinner"></div></div>
+                        <div class="env-info">
+                            <div class="label">PyTorch</div>
+                            <div class="detail">检查中...</div>
+                        </div>
+                    </li>
+                    <li class="env-check-item checking" data-check="gpu">
+                        <div class="env-icon"><div class="spinner"></div></div>
+                        <div class="env-info">
+                            <div class="label">GPU 加速</div>
+                            <div class="detail">检查中...</div>
+                        </div>
+                    </li>
+                    <li class="env-check-item checking" data-check="disk">
+                        <div class="env-icon"><div class="spinner"></div></div>
+                        <div class="env-info">
+                            <div class="label">磁盘空间</div>
+                            <div class="detail">检查中...</div>
+                        </div>
+                    </li>
+                </ul>
+
+                <div class="button-group">
+                    <button class="btn btn-secondary" onclick="window.close()">取消</button>
+                    <button class="btn btn-primary" id="btn-next-1" disabled onclick="goToStep(2)">
+                        下一步
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 步骤 2: 基础设置 -->
+        <div class="step-panel" id="step-2">
+            <div class="step-content">
+                <h2>⚙️ 基础设置</h2>
+                <p>配置 ComfyUI 的基本运行参数。</p>
+
+                <div class="settings-group">
+                    <label>服务端口</label>
+                    <input type="text" id="server-port" value="8188" />
+                    <div class="settings-hint">ComfyUI 服务监听的端口号</div>
+                </div>
+
+                <div class="toggle-switch">
+                    <div>
+                        <div class="label">启用用户认证</div>
+                        <div class="settings-hint">需要登录才能使用 ComfyUI</div>
+                    </div>
+                    <input type="checkbox" id="enable-auth" checked />
+                </div>
+
+                <div class="toggle-switch">
+                    <div>
+                        <div class="label">开机自动启动</div>
+                        <div class="settings-hint">系统启动时自动运行 ComfyUI</div>
+                    </div>
+                    <input type="checkbox" id="auto-start" />
+                </div>
+
+                <div class="toggle-switch">
+                    <div>
+                        <div class="label">使用 GPU 加速</div>
+                        <div class="settings-hint">使用显卡加速图像生成（推荐）</div>
+                    </div>
+                    <input type="checkbox" id="use-gpu" checked />
+                </div>
+
+                <div class="button-group">
+                    <button class="btn btn-secondary" onclick="goToStep(1)">上一步</button>
+                    <button class="btn btn-primary" onclick="saveSettings(); goToStep(3)">下一步</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 步骤 3: 模型下载 -->
+        <div class="step-panel" id="step-3">
+            <div class="step-content">
+                <h2>📦 模型下载</h2>
+                <p>选择要下载的 AI 模型。您可以稍后在设置中随时下载更多模型。</p>
+
+                <div id="model-list">
+                    <!-- 模型列表将通过 JS 动态生成 -->
+                </div>
+
+                <div class="progress-section" id="download-progress" style="display: none;">
+                    <h3>下载进度</h3>
+                    <div id="progress-items"></div>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn btn-secondary" onclick="goToStep(2)">上一步</button>
+                    <div>
+                        <button class="btn btn-skip" onclick="goToStep(4)">跳过</button>
+                        <button class="btn btn-primary" id="btn-download" onclick="startDownloads()">
+                            开始下载
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 步骤 4: 完成 -->
+        <div class="step-panel" id="step-4">
+            <div class="step-content">
+                <div class="completion-message">
+                    <div class="completion-icon">✓</div>
+                    <h2>设置完成！</h2>
+                    <p>ComfyUI 已准备就绪，点击下方按钮开始您的 AI 创作之旅。</p>
+                    
+                    <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 10px; margin: 20px 0; text-align: left;">
+                        <h3 style="margin-bottom: 15px;">📌 快速提示</h3>
+                        <ul style="color: #8892b0; line-height: 2;">
+                            <li>默认管理员账号: <strong style="color: #00d4ff;">admin</strong> / <strong style="color: #00d4ff;">admin123</strong></li>
+                            <li>访问地址: <strong style="color: #00d4ff;">http://127.0.0.1:8188</strong></li>
+                            <li>模型存放目录: <strong style="color: #00d4ff;">models/</strong></li>
+                            <li>按 <kbd style="background: #2d3748; padding: 2px 8px; border-radius: 4px;">Ctrl+S</kbd> 保存工作流</li>
+                        </ul>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="finishSetup()" style="width: 200px; padding: 15px;">
+                        🚀 启动 ComfyUI
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全局错误处理
+        window.onerror = function(msg, url, lineNo, columnNo, error) {
+            console.error('Error: ', msg, '\nURL: ', url, '\nLine: ', lineNo, '\nColumn: ', columnNo, '\nError object: ', error);
+            return false;
+        };
+
+        // 检查是否在 Electron 环境 - 通过检测 preload 暴露的 API
+        const isElectron = typeof window.electronAPI !== 'undefined';
+        console.log('isElectron:', isElectron);
+        console.log('electronAPI:', window.electronAPI);
+        
+        let currentStep = 1;
+        let envCheckResults = {};
+        let selectedModels = [];
+
+        // 步骤切换
+        function goToStep(step) {
+            // 更新步骤指示器
+            document.querySelectorAll('.step-item').forEach((item, index) => {
+                const itemStep = index + 1;
+                item.classList.remove('active', 'completed');
+                if (itemStep < step) {
+                    item.classList.add('completed');
+                } else if (itemStep === step) {
+                    item.classList.add('active');
+                }
+            });
+
+            // 更新步骤内容
+            document.querySelectorAll('.step-panel').forEach(panel => {
+                panel.classList.remove('active');
+            });
+            document.getElementById(`step-${step}`).classList.add('active');
+
+            currentStep = step;
+
+            // 步骤特定逻辑
+            if (step === 1) {
+                runEnvChecks();
+            } else if (step === 3) {
+                loadModelList();
+            }
+        }
+
+        // 环境检测
+        async function runEnvChecks() {
+            const checks = [
+                { id: 'python', delay: 500, critical: true },
+                { id: 'pytorch', delay: 800, critical: false },
+                { id: 'gpu', delay: 1000, critical: false },
+                { id: 'disk', delay: 600, critical: false }
+            ];
+
+            let canProceed = true;
+            let hasWarnings = false;
+
+            for (const check of checks) {
+                await new Promise(resolve => setTimeout(resolve, check.delay));
+                
+                const item = document.querySelector(`[data-check="${check.id}"]`);
+                const result = await performCheck(check.id);
+                
+                item.classList.remove('checking');
+                item.classList.add(result.status);
+                
+                const icon = item.querySelector('.env-icon');
+                icon.innerHTML = result.status === 'success' ? '✅' : 
+                                 result.status === 'warning' ? '⚠️' : '❌';
+                
+                item.querySelector('.detail').textContent = result.detail;
+                
+                envCheckResults[check.id] = result;
+                
+                // 只有关键检测项失败才阻止继续
+                if (result.status === 'error') {
+                    if (check.critical) {
+                        canProceed = false;
+                    } else {
+                        hasWarnings = true;
+                    }
+                }
+            }
+
+            // 更新按钮状态
+            const nextBtn = document.getElementById('btn-next-1');
+            nextBtn.disabled = !canProceed;
+            
+            // 如果有警告，修改按钮文字
+            if (canProceed && hasWarnings) {
+                nextBtn.textContent = '继续（有警告）';
+            }
+        }
+
+        // 执行具体检测
+        async function performCheck(checkId) {
+            // 使用 Electron IPC 获取真实检测结果
+            if (isElectron && window.electronAPI) {
+                try {
+                    const results = await window.electronAPI.checkEnvironment();
+                    const mapping = {
+                        'python': results.python,
+                        'pytorch': results.pytorch,
+                        'gpu': results.gpu,
+                        'disk': results.disk
+                    };
+                    return mapping[checkId] || { status: 'error', detail: '检测失败' };
+                } catch (err) {
+                    console.error('Environment check failed:', err);
+                    return { status: 'error', detail: '检测出错: ' + err.message };
+                }
+            }
+            
+            // 非 Electron 环境的模拟结果
+            const mockResults = {
+                python: { status: 'success', detail: 'Python 3.11 已安装' },
+                pytorch: { status: 'success', detail: 'PyTorch 2.1.0' },
+                gpu: { status: 'success', detail: 'GPU 可用' },
+                disk: { status: 'success', detail: '可用空间: 100 GB' }
+            };
+            
+            return mockResults[checkId] || { status: 'error', detail: '检测失败' };
+        }
+
+        // 保存设置
+        async function saveSettings() {
+            const settings = {
+                serverPort: parseInt(document.getElementById('server-port').value) || 8188,
+                enableAuth: document.getElementById('enable-auth').checked,
+                autoStart: document.getElementById('auto-start').checked,
+                useGpu: document.getElementById('use-gpu').checked
+            };
+            
+            // 通过 IPC 发送到主进程
+            if (isElectron && window.electronAPI) {
+                try {
+                    await window.electronAPI.setConfig(settings);
+                    console.log('Settings saved:', settings);
+                } catch (err) {
+                    console.error('Failed to save settings:', err);
+                }
+            } else {
+                console.log('Settings (mock):', settings);
+            }
+        }
+
+        // 加载模型列表
+        function loadModelList() {
+            const modelConfigs = {
+                checkpoints: [
+                    { name: 'sd_xl_base_1.0.safetensors', size: '6.94 GB', desc: 'SDXL 基础模型', installed: false },
+                    { name: 'v1-5-pruned-emaonly.safetensors', size: '4.27 GB', desc: 'SD 1.5 模型', installed: false }
+                ],
+                vae: [
+                    { name: 'sdxl_vae.safetensors', size: '335 MB', desc: 'SDXL VAE', installed: false }
+                ],
+                upscale_models: [
+                    { name: 'RealESRGAN_x4plus.pth', size: '67 MB', desc: '4x 放大模型', installed: false }
+                ]
+            };
+
+            const container = document.getElementById('model-list');
+            container.innerHTML = '';
+
+            for (const [category, models] of Object.entries(modelConfigs)) {
+                const categoryDiv = document.createElement('div');
+                categoryDiv.className = 'model-category';
+                categoryDiv.innerHTML = `<h3>📁 ${formatCategoryName(category)}</h3>`;
+
+                for (const model of models) {
+                    const modelDiv = document.createElement('div');
+                    modelDiv.className = 'model-item';
+                    modelDiv.innerHTML = `
+                        <input type="checkbox" class="model-checkbox" 
+                               data-category="${category}" 
+                               data-name="${model.name}"
+                               ${model.installed ? 'disabled checked' : ''}>
+                        <div class="model-info">
+                            <div class="name">${model.name}</div>
+                            <div class="desc">${model.desc}</div>
+                        </div>
+                        <span class="model-size">${model.size}</span>
+                        <span class="model-status">${model.installed ? '✅' : ''}</span>
+                    `;
+                    categoryDiv.appendChild(modelDiv);
+                }
+
+                container.appendChild(categoryDiv);
+            }
+        }
+
+        function formatCategoryName(name) {
+            const names = {
+                'checkpoints': 'Checkpoint 模型',
+                'vae': 'VAE 模型',
+                'clip': 'CLIP 模型',
+                'controlnet': 'ControlNet 模型',
+                'upscale_models': '放大模型'
+            };
+            return names[name] || name;
+        }
+
+        // 开始下载
+        async function startDownloads() {
+            const checkboxes = document.querySelectorAll('.model-checkbox:checked:not(:disabled)');
+            
+            if (checkboxes.length === 0) {
+                goToStep(4);
+                return;
+            }
+
+            selectedModels = Array.from(checkboxes).map(cb => ({
+                category: cb.dataset.category,
+                name: cb.dataset.name
+            }));
+
+            document.getElementById('download-progress').style.display = 'block';
+            document.getElementById('btn-download').disabled = true;
+            document.getElementById('btn-download').textContent = '下载中...';
+
+            const progressContainer = document.getElementById('progress-items');
+            progressContainer.innerHTML = '';
+
+            for (const model of selectedModels) {
+                const progressItem = document.createElement('div');
+                progressItem.className = 'progress-item';
+                progressItem.id = `progress-${model.category}-${model.name}`;
+                progressItem.innerHTML = `
+                    <div class="progress-header">
+                        <span>${model.name}</span>
+                        <span class="progress-percent">0%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 0%"></div>
+                    </div>
+                `;
+                progressContainer.appendChild(progressItem);
+            }
+
+            // 模拟下载进度
+            for (const model of selectedModels) {
+                await simulateDownload(model);
+            }
+
+            document.getElementById('btn-download').textContent = '完成';
+            setTimeout(() => goToStep(4), 1000);
+        }
+
+        // 模拟下载
+        async function simulateDownload(model) {
+            const progressItem = document.getElementById(`progress-${model.category}-${model.name}`);
+            const progressFill = progressItem.querySelector('.progress-fill');
+            const progressPercent = progressItem.querySelector('.progress-percent');
+
+            for (let i = 0; i <= 100; i += 5) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                progressFill.style.width = `${i}%`;
+                progressPercent.textContent = `${i}%`;
+            }
+        }
+
+        // 完成设置
+        async function finishSetup() {
+            const btn = document.querySelector('.completion-message .btn-primary');
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = '🚀 正在启动...';
+            }
+            
+            if (isElectron && window.electronAPI) {
+                try {
+                    await window.electronAPI.finishSetup();
+                    // 窗口会被关闭，这里不需要做什么
+                } catch (err) {
+                    console.error('Failed to finish setup:', err);
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.textContent = '🚀 启动 ComfyUI';
+                    }
+                    alert('启动失败: ' + err.message);
+                }
+            } else {
+                // 非 Electron 环境，跳转到主页
+                window.location.href = '/';
+            }
+        }
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            runEnvChecks();
+        });
+    </script>
+</body>
+</html>

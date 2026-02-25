@@ -1,0 +1,81 @@
+{
+  "name": "comfyui-desktop",
+  "version": "1.0.0",
+  "description": "ComfyUI Desktop Application with Authentication",
+  "main": "main.js",
+  "author": "Victor <455947455@qq.com>",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "start:dev": "NODE_ENV=development electron .",
+    "build": "electron-builder",
+    "build:mac": "electron-builder --mac",
+    "build:win": "electron-builder --win",
+    "build:linux": "electron-builder --linux",
+    "setup-python": "bash scripts/setup-python-env.sh",
+    "reset-config": "node -e \"require('electron-store').default && new (require('electron-store'))().clear()\""
+  },
+  "dependencies": {
+    "electron-store": "^8.1.0"
+  },
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1"
+  },
+  "build": {
+    "appId": "com.comfyui.desktop",
+    "productName": "ComfyUI",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "splash.html",
+      "setup-wizard.html",
+      "scripts/**/*",
+      "assets/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../",
+        "to": "comfyui",
+        "filter": [
+          "**/*",
+          "!desktop/**",
+          "!.git/**",
+          "!*.pyc",
+          "!__pycache__/**",
+          "!temp/**",
+          "!output/**"
+        ]
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.graphics-design",
+      "icon": "assets/icon.icns",
+      "target": ["dmg", "zip"],
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false
+    },
+    "win": {
+      "icon": "assets/icon.ico",
+      "target": ["nsis", "portable"],
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico",
+      "installerHeaderIcon": "assets/icon.ico"
+    },
+    "linux": {
+      "icon": "assets/icon.png",
+      "target": ["AppImage", "deb"],
+      "category": "Graphics"
+    }
+  }
+}
