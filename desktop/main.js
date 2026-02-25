@@ -194,7 +194,7 @@ function checkExistingEnvironment() {
     }
     
     // 关键依赖列表
-    const criticalDeps = ['torch', 'transformers', 'safetensors', 'aiohttp'];
+    const criticalDeps = ['torch', 'transformers', 'safetensors', 'aiohttp', 'einops', 'torchvision', 'torchaudio'];
     
     for (const pythonPath of possiblePythonPaths) {
         try {
@@ -340,8 +340,18 @@ async function checkDependencies() {
     const criticalPackages = [
         { name: 'comfy_aimdo', pip: 'comfy-aimdo' },
         { name: 'torch', pip: 'torch' },
+        { name: 'torchvision', pip: 'torchvision' },
+        { name: 'torchaudio', pip: 'torchaudio' },
+        { name: 'einops', pip: 'einops' },
         { name: 'transformers', pip: 'transformers' },
-        { name: 'safetensors', pip: 'safetensors' }
+        { name: 'safetensors', pip: 'safetensors' },
+        { name: 'aiohttp', pip: 'aiohttp' },
+        { name: 'numpy', pip: 'numpy>=1.25.0' },
+        { name: 'PIL', pip: 'Pillow' },
+        { name: 'scipy', pip: 'scipy' },
+        { name: 'yaml', pip: 'pyyaml' },
+        { name: 'tqdm', pip: 'tqdm' },
+        { name: 'sentencepiece', pip: 'sentencepiece' }
     ];
     
     for (const pkg of criticalPackages) {
