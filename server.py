@@ -48,6 +48,9 @@ from protocol import BinaryEventTypes
 # Import cache control middleware
 from middleware.cache_middleware import cache_control
 
+# Import auth module
+from app.auth import AuthManager, create_auth_middleware
+
 if args.enable_manager:
     import comfyui_manager
 
@@ -214,7 +217,19 @@ class PromptServer():
         self.client_session:Optional[aiohttp.ClientSession] = None
         self.number = 0
 
+        # Initialize auth manager
+        self.auth_manager = None
+        if args.enable_auth:
+            self.auth_manager = AuthManager(secret_key=args.auth_secret_key)
+            logging.info("[Auth] Authentication system enabled")
+
         middlewares = [cache_control, deprecation_warning]
+        
+        # Add auth middleware if enabled
+        if args.enable_auth and self.auth_manager:
+            middlewares.append(create_auth_middleware(self.auth_manager, enabled=True))
+            logging.info("[Auth] Auth middleware added")
+        
         if args.enable_compress_response_body:
             middlewares.append(compress_body)
 
@@ -309,7 +324,57 @@ class PromptServer():
 
         @routes.get("/")
         async def get_root(request):
-            response = web.FileResponse(os.path.join(self.web_root, "index.html"))
+            # 如果启用了认证，注入用户信息脚本
+            if args.enable_auth:
+                index_path = os.path.join(self.web_root, "index.html")
+                with open(index_path, 'r', encoding='utf-8') as f:
+                    html_content = f.read()
+                
+                # 注入用户信息脚本
+                user_script = '<script src="/web_custom/js/user-info.js"></script>'
+                if '</body>' in html_content:
+                    html_content = html_content.replace('</body>', f'{user_script}\n</body>')
+                elif '</html>' in html_content:
+                    html_content = html_content.replace('</html>', f'{user_script}\n</html>')
+                else:
+                    html_content += user_script
+                
+                response = web.Response(text=html_content, content_type='text/html')
+            else:
+                response = web.FileResponse(os.path.join(self.web_root, "index.html"))
+            
+            response.headers['Cache-Control'] = 'no-cache'
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+            return response
+
+        @routes.get("/web_custom/{path:.*}")
+        async def get_web_custom(request):
+            """提供 web_custom 目录下的静态文件"""
+            path = request.match_info.get("path", "")
+            file_path = os.path.join(os.path.dirname(__file__), "web_custom", path)
+            
+            # 安全检查
+            base_dir = os.path.join(os.path.dirname(__file__), "web_custom")
+            if not os.path.abspath(file_path).startswith(os.path.abspath(base_dir)):
+                return web.Response(status=403)
+            
+            if os.path.exists(file_path) and os.path.isfile(file_path):
+                response = web.FileResponse(file_path)
+                response.headers['Cache-Control'] = 'no-cache'
+                return response
+            return web.Response(status=404)
+
+        @routes.get("/login")
+        async def get_login(request):
+            """登录页面路由"""
+            # 优先使用 web_custom 目录下的登录页面
+            login_page = os.path.join(os.path.dirname(__file__), "web_custom", "login.html")
+            if os.path.exists(login_page):
+                response = web.FileResponse(login_page)
+            else:
+                # 回退到默认的 web_root
+                response = web.FileResponse(os.path.join(self.web_root, "login.html"))
             response.headers['Cache-Control'] = 'no-cache'
             response.headers["Pragma"] = "no-cache"
             response.headers["Expires"] = "0"
@@ -1005,6 +1070,11 @@ class PromptServer():
         self.subgraph_manager.add_routes(self.routes, nodes.LOADED_MODULE_DIRS.items())
         self.node_replace_manager.add_routes(self.routes)
         self.app.add_subapp('/internal', self.internal_routes.get_app())
+
+        # Add auth routes if enabled
+        if self.auth_manager:
+            self.auth_manager.add_routes(self.routes)
+            logging.info("[Auth] Auth routes registered")
 
         # Prefix every route with /api for easier matching for delegation.
         # This is very useful for frontend dev server, which need to forward
