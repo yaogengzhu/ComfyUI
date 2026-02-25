@@ -35,8 +35,8 @@
       "preload-splash.js",
       "splash.html",
       "setup-wizard.html",
-      "scripts/**/*",
-      "assets/**/*"
+      "scripts",
+      "assets"
     ],
     "extraResources": [
       {
