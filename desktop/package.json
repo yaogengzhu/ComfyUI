@@ -1,7 +1,7 @@
 {
-  "name": "comfyui-desktop",
+  "name": "huizhi-ai-desktop",
   "version": "1.0.0",
-  "description": "ComfyUI Desktop Application with Authentication",
+  "description": "绘智 AI Desktop Application",
   "main": "main.js",
   "author": "Victor <455947455@qq.com>",
   "license": "MIT",
@@ -24,14 +24,15 @@
     "electron-builder": "^24.9.1"
   },
   "build": {
-    "appId": "com.comfyui.desktop",
-    "productName": "ComfyUI",
+    "appId": "com.huizhi.ai.desktop",
+    "productName": "绘智AI",
     "directories": {
       "output": "dist"
     },
     "files": [
       "main.js",
       "preload.js",
+      "preload-splash.js",
       "splash.html",
       "setup-wizard.html",
       "scripts/**/*",

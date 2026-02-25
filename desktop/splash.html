@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>ComfyUI</title>
+    <title>绘智 AI</title>
     <style>
         * {
             margin: 0;
@@ -14,7 +14,7 @@
             height: 100%;
             background: #1a1a1a;
             color: #fff;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', sans-serif;
             overflow: hidden;
         }
         
@@ -24,17 +24,116 @@
             height: 100vh;
         }
         
-        /* 顶部终端区域 */
+        /* ============ macOS 标题栏 ============ */
+        .titlebar-mac {
+            -webkit-app-region: drag;
+            height: 38px;
+            background: #0d0d0d;
+            display: none; /* 默认隐藏，由 JS 控制 */
+            align-items: center;
+            padding-left: 78px; /* 为系统交通灯留空间 */
+            border-bottom: 1px solid #2a2a2a;
+        }
+        
+        .titlebar-mac.visible {
+            display: flex;
+        }
+        
+        .mac-title {
+            flex: 1;
+            text-align: center;
+            font-size: 13px;
+            color: #888;
+            margin-right: 78px;
+        }
+        
+        /* ============ Windows 标题栏 ============ */
+        .titlebar-win {
+            -webkit-app-region: drag;
+            height: 32px;
+            background: #0d0d0d;
+            display: none; /* 默认隐藏，由 JS 控制 */
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #2a2a2a;
+        }
+        
+        .titlebar-win.visible {
+            display: flex;
+        }
+        
+        .win-title {
+            padding-left: 12px;
+            font-size: 12px;
+            color: #888;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .win-icon {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+        }
+        
+        .win-controls {
+            display: flex;
+            -webkit-app-region: no-drag;
+        }
+        
+        .win-btn {
+            width: 46px;
+            height: 32px;
+            border: none;
+            background: transparent;
+            color: #888;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s;
+        }
+        
+        .win-btn:hover {
+            background: #333;
+        }
+        
+        .win-btn.close:hover {
+            background: #e81123;
+            color: #fff;
+        }
+        
+        .win-btn svg {
+            width: 10px;
+            height: 10px;
+        }
+        
+        /* ============ Linux 标题栏 ============ */
+        .titlebar-linux {
+            -webkit-app-region: drag;
+            height: 36px;
+            background: #0d0d0d;
+            display: none; /* 默认隐藏，由 JS 控制 */
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #2a2a2a;
+        }
+        
+        .titlebar-linux.visible {
+            display: flex;
+        }
+        
+        /* ============ 终端区域 ============ */
         .terminal {
             flex: 1;
             background: #0d0d0d;
             padding: 12px 16px;
             overflow-y: auto;
-            font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
+            font-family: 'SF Mono', 'Monaco', 'Consolas', 'Courier New', monospace;
             font-size: 11px;
             line-height: 1.5;
             color: #a0a0a0;
-            border-bottom: 1px solid #333;
         }
         
         .terminal::-webkit-scrollbar {
@@ -50,9 +149,14 @@
             border-radius: 4px;
         }
         
+        .terminal::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        
         .log-line {
             white-space: pre-wrap;
             word-break: break-all;
+            padding: 1px 0;
         }
         
         .log-line.info { color: #a0a0a0; }
@@ -61,34 +165,43 @@
         .log-line.error { color: #f87171; }
         .log-line.highlight { color: #60a5fa; }
         .log-line.path { color: #c084fc; }
+        .log-line.start { color: #38bdf8; }
         
-        /* 底部状态区域 */
+        /* ============ 底部状态区域 ============ */
         .status-area {
-            padding: 30px 40px;
+            padding: 24px 40px 32px;
             text-align: center;
             background: linear-gradient(180deg, #1a1a1a 0%, #0d0d0d 100%);
+            border-top: 1px solid #2a2a2a;
         }
         
-        .logo {
-            font-size: 48px;
+        .logo-container {
+            margin-bottom: 20px;
+        }
+        
+        .logo-img {
+            width: 80px;
+            height: 80px;
+            border-radius: 16px;
+            margin-bottom: 8px;
+        }
+        
+        .logo-text {
+            font-size: 28px;
             font-weight: bold;
-            margin-bottom: 24px;
-            background: linear-gradient(135deg, #c8ff00 0%, #a0e000 100%);
+            background: linear-gradient(135deg, #4facfe 0%, #9b5de5 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            text-shadow: 0 0 30px rgba(200, 255, 0, 0.3);
-            font-family: 'Comic Sans MS', cursive, sans-serif;
-            letter-spacing: 2px;
         }
         
         .progress-container {
-            width: 300px;
-            margin: 0 auto 20px;
+            width: 280px;
+            margin: 0 auto 16px;
         }
         
         .progress-bar {
-            height: 4px;
+            height: 3px;
             background: #333;
             border-radius: 2px;
             overflow: hidden;
@@ -96,30 +209,11 @@
         
         .progress-fill {
             height: 100%;
-            background: linear-gradient(90deg, #c8ff00 0%, #a0e000 100%);
+            background: linear-gradient(90deg, #4facfe 0%, #9b5de5 100%);
             width: 0%;
             transition: width 0.3s ease;
-            animation: progress-glow 2s infinite;
         }
         
-        @keyframes progress-glow {
-            0%, 100% { box-shadow: 0 0 5px rgba(200, 255, 0, 0.5); }
-            50% { box-shadow: 0 0 15px rgba(200, 255, 0, 0.8); }
-        }
-        
-        .status-title {
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 8px;
-            color: #fff;
-        }
-        
-        .status-message {
-            font-size: 13px;
-            color: #888;
-        }
-        
-        /* 进度指示动画 */
         .progress-fill.indeterminate {
             width: 30%;
             animation: indeterminate 1.5s infinite ease-in-out;
@@ -130,104 +224,175 @@
             100% { transform: translateX(400%); }
         }
         
-        /* 窗口拖拽区域 */
-        .drag-region {
-            -webkit-app-region: drag;
-            height: 28px;
-            background: #0d0d0d;
-            display: flex;
-            align-items: center;
-            padding-left: 12px;
+        .status-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: #fff;
         }
         
-        .window-controls {
-            display: flex;
-            gap: 8px;
-            -webkit-app-region: no-drag;
+        .status-message {
+            font-size: 12px;
+            color: #666;
         }
-        
-        .window-btn {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            border: none;
-            cursor: pointer;
-        }
-        
-        .window-btn.close { background: #ff5f57; }
-        .window-btn.minimize { background: #ffbd2e; }
-        .window-btn.maximize { background: #28c940; }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- macOS 风格标题栏 -->
-        <div class="drag-region">
-            <div class="window-controls">
-                <button class="window-btn close" title="关闭"></button>
-                <button class="window-btn minimize" title="最小化"></button>
-                <button class="window-btn maximize" title="最大化"></button>
+        <!-- macOS 标题栏 (使用系统原生交通灯) -->
+        <div class="titlebar-mac" id="titlebar-mac">
+            <div class="mac-title">绘智 AI</div>
+        </div>
+        
+        <!-- Windows 标题栏 -->
+        <div class="titlebar-win" id="titlebar-win">
+            <div class="win-title">
+                <img class="win-icon" src="assets/icon.png" alt="logo">
+                绘智 AI
+            </div>
+            <div class="win-controls">
+                <button class="win-btn" id="win-minimize" title="最小化">
+                    <svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" stroke-width="1" fill="none"/></svg>
+                </button>
+                <button class="win-btn" id="win-maximize" title="最大化">
+                    <svg viewBox="0 0 10 10"><rect x="0.5" y="0.5" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1"/></svg>
+                </button>
+                <button class="win-btn close" id="win-close" title="关闭">
+                    <svg viewBox="0 0 10 10"><path d="M1 1l8 8M9 1L1 9" stroke="currentColor" stroke-width="1" fill="none"/></svg>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Linux 标题栏 -->
+        <div class="titlebar-linux" id="titlebar-linux">
+            <div class="win-title">
+                <img class="win-icon" src="assets/icon.png" alt="logo">
+                绘智 AI
+            </div>
+            <div class="win-controls">
+                <button class="win-btn" id="linux-minimize" title="最小化">
+                    <svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" stroke-width="1" fill="none"/></svg>
+                </button>
+                <button class="win-btn" id="linux-maximize" title="最大化">
+                    <svg viewBox="0 0 10 10"><rect x="0.5" y="0.5" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1"/></svg>
+                </button>
+                <button class="win-btn close" id="linux-close" title="关闭">
+                    <svg viewBox="0 0 10 10"><path d="M1 1l8 8M9 1L1 9" stroke="currentColor" stroke-width="1" fill="none"/></svg>
+                </button>
             </div>
         </div>
         
         <!-- 终端输出区域 -->
-        <div class="terminal" id="terminal">
-            <!-- 日志将动态添加到这里 -->
-        </div>
+        <div class="terminal" id="terminal"></div>
         
         <!-- 底部状态区域 -->
         <div class="status-area">
-            <div class="logo">Comfy</div>
+            <div class="logo-container">
+                <img class="logo-img" src="assets/icon.png" alt="绘智 AI">
+                <div class="logo-text">绘智 AI</div>
+            </div>
             <div class="progress-container">
                 <div class="progress-bar">
                     <div class="progress-fill indeterminate" id="progressFill"></div>
                 </div>
             </div>
-            <div class="status-title" id="statusTitle">Starting ComfyUI</div>
-            <div class="status-message" id="statusMessage">Starting ComfyUI server...</div>
+            <div class="status-title" id="statusTitle">正在启动</div>
+            <div class="status-message" id="statusMessage">正在启动绘智 AI 服务...</div>
         </div>
     </div>
 
     <script>
-        const { ipcRenderer } = require('electron');
+        // 获取 API (通过 preload 注入)
+        const api = window.splashAPI;
         
         const terminal = document.getElementById('terminal');
         const progressFill = document.getElementById('progressFill');
         const statusTitle = document.getElementById('statusTitle');
         const statusMessage = document.getElementById('statusMessage');
         
-        // 添加日志行
+        // ============ 平台检测和标题栏设置 ============
+        
+        function setupTitlebar() {
+            const platform = api.platform;
+            
+            if (platform === 'darwin') {
+                // macOS: 显示标题栏，系统会自动添加交通灯
+                document.getElementById('titlebar-mac').classList.add('visible');
+            } else if (platform === 'win32') {
+                // Windows: 显示自定义标题栏
+                document.getElementById('titlebar-win').classList.add('visible');
+                setupWindowsControls();
+            } else {
+                // Linux: 显示自定义标题栏
+                document.getElementById('titlebar-linux').classList.add('visible');
+                setupLinuxControls();
+            }
+        }
+        
+        function setupWindowsControls() {
+            document.getElementById('win-minimize').addEventListener('click', () => {
+                api.minimizeWindow();
+            });
+            
+            document.getElementById('win-maximize').addEventListener('click', () => {
+                api.maximizeWindow();
+            });
+            
+            document.getElementById('win-close').addEventListener('click', () => {
+                api.closeWindow();
+            });
+        }
+        
+        function setupLinuxControls() {
+            document.getElementById('linux-minimize').addEventListener('click', () => {
+                api.minimizeWindow();
+            });
+            
+            document.getElementById('linux-maximize').addEventListener('click', () => {
+                api.maximizeWindow();
+            });
+            
+            document.getElementById('linux-close').addEventListener('click', () => {
+                api.closeWindow();
+            });
+        }
+        
+        // ============ 日志和状态管理 ============
+        
         function addLog(message, type = 'info') {
             const line = document.createElement('div');
             line.className = `log-line ${type}`;
             line.textContent = message;
             terminal.appendChild(line);
-            
-            // 自动滚动到底部
             terminal.scrollTop = terminal.scrollHeight;
         }
         
-        // 解析日志类型
         function parseLogType(message) {
-            if (message.includes('[ERROR]') || message.includes('Error') || message.includes('error')) {
+            const lowerMsg = message.toLowerCase();
+            
+            if (lowerMsg.includes('[error]') || lowerMsg.includes('error:') || lowerMsg.includes('failed')) {
                 return 'error';
             }
-            if (message.includes('[WARN]') || message.includes('Warning')) {
+            if (lowerMsg.includes('[warn]') || lowerMsg.includes('warning')) {
                 return 'warning';
             }
-            if (message.includes('[DONE]') || message.includes('successfully') || message.includes('完成')) {
+            if (lowerMsg.includes('[done]') || lowerMsg.includes('successfully') || lowerMsg.includes('完成') || lowerMsg.includes('成功')) {
                 return 'success';
             }
-            if (message.includes('Path:') || message.includes('directory')) {
+            if (lowerMsg.includes('[start]') || lowerMsg.includes('starting') || lowerMsg.includes('正在')) {
+                return 'start';
+            }
+            if (message.includes('Path:') || message.includes('directory') || 
+                message.includes('/Users/') || message.includes('/home/') || 
+                message.includes('C:\\') || message.includes('D:\\')) {
                 return 'path';
             }
-            if (message.startsWith('**') || message.includes('ComfyUI')) {
+            if (message.startsWith('**') || lowerMsg.includes('绘智')) {
                 return 'highlight';
             }
             return 'info';
         }
         
-        // 更新状态
         function updateStatus(title, message, progress = null) {
             if (title) statusTitle.textContent = title;
             if (message) statusMessage.textContent = message;
@@ -238,26 +403,33 @@
             }
         }
         
-        // 初始启动日志
         function addInitialLogs() {
             const startTime = new Date().toISOString().replace('T', ' ').slice(0, 19);
-            addLog(`** ComfyUI startup time: ${startTime}`, 'highlight');
-            addLog(`** Platform: ${process.platform === 'darwin' ? 'Darwin' : process.platform}`, 'highlight');
+            const platformNames = {
+                'darwin': 'Darwin (macOS)',
+                'win32': 'Windows',
+                'linux': 'Linux'
+            };
+            const platformName = platformNames[api.platform] || api.platform;
+            
+            addLog(`** 绘智 AI Desktop 启动时间: ${startTime}`, 'highlight');
+            addLog(`** 平台: ${platformName}`, 'highlight');
+            addLog(`** 架构: ${api.arch}`, 'highlight');
+            addLog('', 'info');
         }
         
-        // 监听状态更新
-        ipcRenderer.on('status', (event, message) => {
-            updateStatus(null, message);
-        });
+        // ============ IPC 监听 ============
         
-        // 监听日志
-        ipcRenderer.on('log', (event, message) => {
+        api.onLog((message) => {
             const type = parseLogType(message);
             addLog(message, type);
         });
         
-        // 监听进度
-        ipcRenderer.on('progress', (event, data) => {
+        api.onStatus((message) => {
+            updateStatus(null, message);
+        });
+        
+        api.onProgress((data) => {
             if (data.percent !== undefined) {
                 updateStatus(data.title, data.message, data.percent);
             } else {
@@ -265,14 +437,17 @@
             }
         });
         
-        // 监听错误
-        ipcRenderer.on('error', (event, error) => {
-            addLog(`[ERROR] ${error}`, 'error');
+        api.onError((error) => {
+            addLog(`[错误] ${error}`, 'error');
             updateStatus('启动失败', error);
             progressFill.style.background = '#f87171';
+            progressFill.classList.remove('indeterminate');
+            progressFill.style.width = '100%';
         });
         
-        // 初始化
+        // ============ 初始化 ============
+        
+        setupTitlebar();
         addInitialLogs();
     </script>
 </body>

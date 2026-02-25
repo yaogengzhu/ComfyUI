@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ComfyUI 设置向导</title>
+    <title>绘智 AI 设置向导</title>
     <style>
         * {
             margin: 0;
@@ -439,7 +439,7 @@
 <body>
     <div class="wizard-container">
         <div class="wizard-header">
-            <h1>🎨 ComfyUI 设置向导</h1>
+            <h1>🎨 绘智 AI 设置向导</h1>
             <p>让我们一起配置您的 AI 图像生成环境</p>
         </div>
 
@@ -466,7 +466,7 @@
         <div class="step-panel active" id="step-1">
             <div class="step-content">
                 <h2>🔍 环境检测</h2>
-                <p>正在检查您的系统环境，确保 ComfyUI 可以正常运行。</p>
+                <p>正在检查您的系统环境，确保绘智 AI 可以正常运行。</p>
 
                 <ul class="env-check-list" id="env-checks">
                     <li class="env-check-item checking" data-check="python">
@@ -512,18 +512,18 @@
         <div class="step-panel" id="step-2">
             <div class="step-content">
                 <h2>⚙️ 基础设置</h2>
-                <p>配置 ComfyUI 的基本运行参数。</p>
+                <p>配置绘智 AI 的基本运行参数。</p>
 
                 <div class="settings-group">
                     <label>服务端口</label>
                     <input type="text" id="server-port" value="8188" />
-                    <div class="settings-hint">ComfyUI 服务监听的端口号</div>
+                    <div class="settings-hint">绘智 AI 服务监听的端口号</div>
                 </div>
 
                 <div class="toggle-switch">
                     <div>
                         <div class="label">启用用户认证</div>
-                        <div class="settings-hint">需要登录才能使用 ComfyUI</div>
+                        <div class="settings-hint">需要登录才能使用绘智 AI</div>
                     </div>
                     <input type="checkbox" id="enable-auth" checked />
                 </div>
@@ -531,7 +531,7 @@
                 <div class="toggle-switch">
                     <div>
                         <div class="label">开机自动启动</div>
-                        <div class="settings-hint">系统启动时自动运行 ComfyUI</div>
+                        <div class="settings-hint">系统启动时自动运行绘智 AI</div>
                     </div>
                     <input type="checkbox" id="auto-start" />
                 </div>
@@ -584,7 +584,7 @@
                 <div class="completion-message">
                     <div class="completion-icon">✓</div>
                     <h2>设置完成！</h2>
-                    <p>ComfyUI 已准备就绪，点击下方按钮开始您的 AI 创作之旅。</p>
+                    <p>绘智 AI 已准备就绪，点击下方按钮开始您的 AI 创作之旅。</p>
                     
                     <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 10px; margin: 20px 0; text-align: left;">
                         <h3 style="margin-bottom: 15px;">📌 快速提示</h3>
@@ -597,7 +597,7 @@
                     </div>
 
                     <button class="btn btn-primary" onclick="finishSetup()" style="width: 200px; padding: 15px;">
-                        🚀 启动 ComfyUI
+                        🚀 启动绘智 AI
                     </button>
                 </div>
             </div>
@@ -881,7 +881,7 @@
                     console.error('Failed to finish setup:', err);
                     if (btn) {
                         btn.disabled = false;
-                        btn.textContent = '🚀 启动 ComfyUI';
+                        btn.textContent = '🚀 启动绘智 AI';
                     }
                     alert('启动失败: ' + err.message);
                 }

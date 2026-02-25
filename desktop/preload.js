@@ -13,6 +13,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
     
     // 环境检测
     checkEnvironment: () => ipcRenderer.invoke('check-environment'),
+    checkDependencies: () => ipcRenderer.invoke('check-dependencies'),
+    
+    // 安装相关
+    getInstallStatus: () => ipcRenderer.invoke('get-install-status'),
+    startAutoInstall: (options) => ipcRenderer.invoke('start-auto-install', options),
+    installDependencies: (options) => ipcRenderer.invoke('install-dependencies', options),
+    onInstallProgress: (callback) => {
+        ipcRenderer.on('install-progress', (event, data) => callback(data));
+    },
+    onInstallLog: (callback) => {
+        ipcRenderer.on('install-log', (event, msg) => callback(msg));
+    },
     
     // 设置向导
     finishSetup: () => ipcRenderer.invoke('finish-setup'),
