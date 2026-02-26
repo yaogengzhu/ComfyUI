@@ -14,7 +14,7 @@
         
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #172554 100%);
+            background: #0f172a;
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -28,7 +28,7 @@
             padding: 40px;
             width: 100%;
             max-width: 420px;
-            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.3), 0 0 100px rgba(79, 172, 254, 0.05);
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.3);
             border: 1px solid rgba(255, 255, 255, 0.08);
         }
         
@@ -46,13 +46,9 @@
         }
         
         .logo h1 {
-            color: #fff;
+            color: #e2e8f0;
             font-size: 28px;
             font-weight: 700;
-            background: linear-gradient(135deg, #4facfe, #9b5de5);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
         }
         
         .logo p {
@@ -81,9 +77,9 @@
         }
         
         .tab.active {
-            background: linear-gradient(135deg, #4facfe, #7c5ce7);
+            background: #3b82f6;
             color: #fff;
-            box-shadow: 0 4px 15px rgba(79, 172, 254, 0.3);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
         }
         
         .form-group {
@@ -111,9 +107,9 @@
         
         .form-group input:focus {
             outline: none;
-            border-color: #4facfe;
-            background: rgba(79, 172, 254, 0.08);
-            box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+            border-color: #3b82f6;
+            background: rgba(59, 130, 246, 0.08);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
         }
         
         .form-group input::placeholder {
@@ -123,7 +119,7 @@
         .submit-btn {
             width: 100%;
             padding: 14px;
-            background: linear-gradient(135deg, #4facfe, #7c5ce7);
+            background: #3b82f6;
             border: none;
             border-radius: 12px;
             color: #fff;
@@ -136,7 +132,8 @@
         
         .submit-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(79, 172, 254, 0.3);
+            background: #2563eb;
+            box-shadow: 0 10px 25px rgba(59, 130, 246, 0.25);
         }
         
         .submit-btn:disabled {
