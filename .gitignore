@@ -24,5 +24,22 @@ web_custom_versions/
 openapi.yaml
 filtered-openapi.yaml
 uv.lock
-*node_modules/
-*dist
+
+# ============= Desktop 构建产物 =============
+/desktop/dist/
+/desktop/node_modules/
+
+# ============= ComfyUI_frontend (绘智魔改前端) =============
+# 忽略依赖和构建产物，但保留源代码
+ComfyUI_frontend/node_modules/
+ComfyUI_frontend/dist/
+ComfyUI_frontend/.nx/
+ComfyUI_frontend/coverage/
+ComfyUI_frontend/*.local
+ComfyUI_frontend/pnpm-lock.yaml
+ComfyUI_frontend/packages/*/node_modules/
+ComfyUI_frontend/apps/*/node_modules/
+
+# 其他通用忽略
+*.tsbuildinfo
+.turbo/

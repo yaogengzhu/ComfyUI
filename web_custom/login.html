@@ -279,6 +279,7 @@
             COMFY_ORG_TOKEN: 'comfy_org_token',     // ComfyOrg Firebase Token (核心!)
             COMFY_ORG_EXPIRY: 'comfy_org_token_expiry',
             USER_INFO: 'huizhi_user',
+            HUIZHI_USER_INFO: 'huizhi_user_info',   // 新增: 用于 ComfyUI 前端读取
             // 兼容旧的 key (ComfyUI 原有认证系统)
             COMFY_TOKEN: 'comfy_token',
         };
@@ -327,8 +328,17 @@
             const expiresAt = Date.now() + (data.comfyOrgTokenExpiresIn || 3600) * 1000;
             localStorage.setItem(STORAGE_KEYS.COMFY_ORG_EXPIRY, expiresAt.toString());
             
-            // 用户信息
+            // 用户信息 (旧格式)
             localStorage.setItem(STORAGE_KEYS.USER_INFO, JSON.stringify(data.user));
+            
+            // 新增: 用户信息 (ComfyUI 前端需要的格式)
+            // 包含 uid 字段，用于魔改后的 firebaseAuthStore 读取
+            const huizhiUserInfo = {
+                email: data.user.email || data.user.username + '@huizhi.ai',
+                username: data.user.username,
+                uid: data.user.id || data.user.comfyUserId || 'huizhi_' + data.user.username
+            };
+            localStorage.setItem(STORAGE_KEYS.HUIZHI_USER_INFO, JSON.stringify(huizhiUserInfo));
             
             // 兼容: ComfyUI 原有认证系统使用的 key
             localStorage.setItem(STORAGE_KEYS.COMFY_TOKEN, data.huizhiToken);
@@ -336,6 +346,9 @@
             
             // 设置 Cookie (供 ComfyUI 后端中间件验证)
             document.cookie = `comfy_token=${data.huizhiToken}; path=/; max-age=${60*60*24*7}; SameSite=Strict`;
+            
+            console.log('[Login] Tokens saved successfully');
+            console.log('[Login] huizhiUserInfo:', huizhiUserInfo);
         }
 
         function clearTokens() {
