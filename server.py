@@ -330,8 +330,78 @@ class PromptServer():
                 with open(index_path, 'r', encoding='utf-8') as f:
                     html_content = f.read()
                 
-                # 注入用户信息脚本
+                # 注入 Firebase Auth 状态同步脚本 (在 <head> 中最早执行)
+                # 这个脚本必须在 ComfyUI 前端 JS 之前执行，以便模拟 Firebase 登录状态
+                firebase_sync_script = '''<script>
+(function() {
+    // 绘智 Auth 状态同步到 Firebase IndexedDB
+    var comfyOrgToken = localStorage.getItem('comfy_org_token');
+    var userStr = localStorage.getItem('huizhi_user');
+    if (!comfyOrgToken || !userStr) return;
+    
+    var FIREBASE_API_KEY = 'AIzaSyC2-fomLqgCjb7ELwta1I9cEarPK8ziTGs';
+    var storageKey = 'firebase:authUser:' + FIREBASE_API_KEY + ':[DEFAULT]';
+    
+    // 解析 token
+    var tokenPayload = {};
+    try {
+        var parts = comfyOrgToken.split('.');
+        if (parts.length === 3) tokenPayload = JSON.parse(atob(parts[1]));
+    } catch(e) {}
+    
+    var user = {};
+    try { user = JSON.parse(userStr); } catch(e) {}
+    
+    var firebaseUser = {
+        uid: tokenPayload.user_id || tokenPayload.sub || user.comfyOrgUid || '',
+        email: tokenPayload.email || user.email || '',
+        emailVerified: tokenPayload.email_verified || false,
+        displayName: user.username || '',
+        isAnonymous: false,
+        providerData: [{providerId:'password',uid:tokenPayload.email||user.email||'',displayName:user.username||'',email:tokenPayload.email||user.email||'',phoneNumber:null,photoURL:null}],
+        stsTokenManager: {
+            refreshToken: '',
+            accessToken: comfyOrgToken,
+            expirationTime: parseInt(localStorage.getItem('comfy_org_token_expiry') || Date.now() + 3600000)
+        },
+        createdAt: String(Date.now()),
+        lastLoginAt: String(Date.now()),
+        apiKey: FIREBASE_API_KEY,
+        appName: '[DEFAULT]'
+    };
+    
+    // 写入 IndexedDB
+    var req = indexedDB.open('firebaseLocalStorageDb', 1);
+    req.onupgradeneeded = function(e) {
+        var db = e.target.result;
+        if (!db.objectStoreNames.contains('firebaseLocalStorage')) {
+            db.createObjectStore('firebaseLocalStorage');
+        }
+    };
+    req.onsuccess = function(e) {
+        var db = e.target.result;
+        try {
+            var tx = db.transaction(['firebaseLocalStorage'], 'readwrite');
+            var store = tx.objectStore('firebaseLocalStorage');
+            store.put({fbase_key: storageKey, value: firebaseUser}, storageKey);
+        } catch(ex) {}
+    };
+    
+    // 同时写入 localStorage
+    try { localStorage.setItem(storageKey, JSON.stringify(firebaseUser)); } catch(e) {}
+    
+    console.log('[HuizhiAuth] Firebase state synced before page load');
+})();
+</script>'''
+                
+                # 注入用户信息脚本 (在 body 末尾)
                 user_script = '<script src="/web_custom/js/user-info.js"></script>'
+                
+                # 在 <head> 最开始注入 Firebase 同步脚本
+                if '<head>' in html_content:
+                    html_content = html_content.replace('<head>', '<head>\n' + firebase_sync_script)
+                
+                # 在 </body> 前注入用户信息脚本
                 if '</body>' in html_content:
                     html_content = html_content.replace('</body>', f'{user_script}\n</body>')
                 elif '</html>' in html_content:

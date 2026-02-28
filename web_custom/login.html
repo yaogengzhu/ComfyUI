@@ -163,6 +163,12 @@
             display: block;
         }
         
+        .message.info {
+            background: rgba(59, 130, 246, 0.15);
+            color: #60a5fa;
+            display: block;
+        }
+        
         .form-container {
             display: none;
         }
@@ -176,6 +182,28 @@
             margin-top: 24px;
             color: rgba(255, 255, 255, 0.3);
             font-size: 12px;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .hint {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.4);
+            margin-top: 6px;
         }
     </style>
 </head>
@@ -214,11 +242,12 @@
             <form onsubmit="handleRegister(event)">
                 <div class="form-group">
                     <label>用户名</label>
-                    <input type="text" id="register-username" placeholder="请输入用户名 (至少3个字符)" required minlength="3">
+                    <input type="text" id="register-username" placeholder="请输入用户名 (至少2个字符)" required minlength="2">
                 </div>
                 <div class="form-group">
                     <label>邮箱</label>
-                    <input type="email" id="register-email" placeholder="请输入邮箱" required>
+                    <input type="email" id="register-email" placeholder="请输入邮箱">
+                    <p class="hint">邮箱将用于绑定 ComfyOrg 账号</p>
                 </div>
                 <div class="form-group">
                     <label>密码</label>
@@ -238,9 +267,23 @@
     </div>
 
     <script>
-        const API_BASE = window.location.origin;
-        
-        // Tab 切换
+        // ========== 配置 ==========
+        // 绘智认证服务地址 (独立的 Node.js 服务)
+        const AUTH_SERVICE_URL = 'http://localhost:3001';
+        // ComfyUI 后端地址
+        const COMFYUI_URL = window.location.origin;
+
+        // ========== Token 存储键名 ==========
+        const STORAGE_KEYS = {
+            HUIZHI_TOKEN: 'huizhi_token',           // 绘智系统 JWT
+            COMFY_ORG_TOKEN: 'comfy_org_token',     // ComfyOrg Firebase Token (核心!)
+            COMFY_ORG_EXPIRY: 'comfy_org_token_expiry',
+            USER_INFO: 'huizhi_user',
+            // 兼容旧的 key (ComfyUI 原有认证系统)
+            COMFY_TOKEN: 'comfy_token',
+        };
+
+        // ========== Tab 切换 ==========
         document.querySelectorAll('.tab').forEach(tab => {
             tab.addEventListener('click', () => {
                 document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -261,51 +304,94 @@
         function hideMessage() {
             document.getElementById('message').className = 'message';
         }
-        
+
+        function setButtonLoading(btn, loading, text) {
+            if (loading) {
+                btn.disabled = true;
+                btn.innerHTML = `<span class="loading-spinner"></span>${text}`;
+            } else {
+                btn.disabled = false;
+                btn.textContent = text;
+            }
+        }
+
+        // ========== 存储 Token ==========
+        function saveTokens(data) {
+            // 绘智系统 Token
+            localStorage.setItem(STORAGE_KEYS.HUIZHI_TOKEN, data.huizhiToken);
+            
+            // ComfyOrg Token (最重要! 用于 API 节点)
+            localStorage.setItem(STORAGE_KEYS.COMFY_ORG_TOKEN, data.comfyOrgToken);
+            
+            // Token 过期时间
+            const expiresAt = Date.now() + (data.comfyOrgTokenExpiresIn || 3600) * 1000;
+            localStorage.setItem(STORAGE_KEYS.COMFY_ORG_EXPIRY, expiresAt.toString());
+            
+            // 用户信息
+            localStorage.setItem(STORAGE_KEYS.USER_INFO, JSON.stringify(data.user));
+            
+            // 兼容: ComfyUI 原有认证系统使用的 key
+            localStorage.setItem(STORAGE_KEYS.COMFY_TOKEN, data.huizhiToken);
+            localStorage.setItem('comfy_user', JSON.stringify(data.user));
+            
+            // 设置 Cookie (供 ComfyUI 后端中间件验证)
+            document.cookie = `comfy_token=${data.huizhiToken}; path=/; max-age=${60*60*24*7}; SameSite=Strict`;
+        }
+
+        function clearTokens() {
+            Object.values(STORAGE_KEYS).forEach(key => localStorage.removeItem(key));
+            localStorage.removeItem('comfy_user');
+            localStorage.removeItem('comfy_refresh_token');
+            document.cookie = 'comfy_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+        }
+
+        // ========== 登录处理 ==========
         async function handleLogin(e) {
             e.preventDefault();
             const btn = document.getElementById('login-btn');
-            btn.disabled = true;
-            btn.textContent = '登录中...';
+            setButtonLoading(btn, true, '登录中...');
+            
+            const username = document.getElementById('login-username').value.trim();
+            const password = document.getElementById('login-password').value;
+            
+            console.log('[Login] Attempting login for:', username);
+            console.log('[Login] Auth service URL:', AUTH_SERVICE_URL);
             
             try {
-                const response = await fetch(API_BASE + '/api/auth/login', {
+                const requestBody = JSON.stringify({ username, password });
+                console.log('[Login] Request body:', requestBody);
+                
+                const response = await fetch(`${AUTH_SERVICE_URL}/api/auth/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        username: document.getElementById('login-username').value,
-                        password: document.getElementById('login-password').value
-                    })
+                    body: requestBody
                 });
                 
-                const data = await response.json();
+                console.log('[Login] Response status:', response.status);
                 
-                if (data.success) {
-                    // 保存 Token 到 localStorage
-                    localStorage.setItem('comfy_token', data.data.token);
-                    localStorage.setItem('comfy_refresh_token', data.data.refresh_token);
-                    localStorage.setItem('comfy_user', JSON.stringify(data.data.user));
-                    
-                    // 同时设置 Cookie (供服务器端认证使用)
-                    document.cookie = `comfy_token=${data.data.token}; path=/; max-age=${60*60*24*7}; SameSite=Strict`;
-                    
+                const result = await response.json();
+                console.log('[Login] Response data:', result);
+                
+                if (response.ok && result.data) {
+                    saveTokens(result.data);
                     showMessage('登录成功，正在跳转...', 'success');
                     
-                    // 跳转到主页
                     setTimeout(() => {
                         window.location.href = '/';
-                    }, 1000);
+                    }, 800);
                 } else {
-                    showMessage(data.message || '登录失败', 'error');
+                    console.error('[Login Error]', result.error || result.message);
+                    showMessage(result.error || result.message || '登录失败', 'error');
                 }
             } catch (err) {
-                showMessage('网络错误，请重试', 'error');
+                console.error('[Login] Network error:', err);
+                showMessage('无法连接认证服务，请检查服务是否启动 (打开控制台查看详情)', 'error');
             } finally {
-                btn.disabled = false;
-                btn.textContent = '登 录';
+                setButtonLoading(btn, false, '登 录');
             }
         }
         
+        // ========== 注册处理 ==========
         async function handleRegister(e) {
             e.preventDefault();
             
@@ -318,11 +404,11 @@
             }
             
             const btn = document.getElementById('register-btn');
-            btn.disabled = true;
-            btn.textContent = '注册中...';
+            setButtonLoading(btn, true, '注册中...');
+            showMessage('正在创建账号并绑定 ComfyOrg...', 'info');
             
             try {
-                const response = await fetch(API_BASE + '/api/auth/register', {
+                const response = await fetch(`${AUTH_SERVICE_URL}/api/auth/register`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -332,57 +418,55 @@
                     })
                 });
                 
-                const data = await response.json();
+                const result = await response.json();
                 
-                if (data.success) {
-                    showMessage('注册成功，请登录', 'success');
-                    // 切换到登录表单
+                if (response.ok && result.data) {
+                    // 注册成功，直接保存 Token 并登录
+                    saveTokens(result.data);
+                    showMessage('注册成功，正在跳转...', 'success');
+                    
                     setTimeout(() => {
-                        document.querySelector('.tab[data-tab="login"]').click();
-                    }, 1500);
+                        window.location.href = '/';
+                    }, 800);
                 } else {
-                    showMessage(data.message || '注册失败', 'error');
+                    showMessage(result.error || result.message || '注册失败', 'error');
                 }
             } catch (err) {
-                showMessage('网络错误，请重试', 'error');
+                console.error('Register error:', err);
+                showMessage('无法连接认证服务，请检查服务是否启动', 'error');
             } finally {
-                btn.disabled = false;
-                btn.textContent = '注 册';
+                setButtonLoading(btn, false, '注 册');
             }
         }
         
-        // 检查是否已登录
+        // ========== 页面初始化 ==========
         window.onload = function() {
             // 检查 URL 参数，如果有 logout=1 则清除登录状态
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('logout') === '1') {
-                localStorage.removeItem('comfy_token');
-                localStorage.removeItem('comfy_refresh_token');
-                localStorage.removeItem('comfy_user');
-                document.cookie = 'comfy_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+                clearTokens();
                 showMessage('已退出登录', 'success');
-                // 清除 URL 参数
                 history.replaceState({}, document.title, '/login');
                 return;
             }
             
-            const token = localStorage.getItem('comfy_token');
-            if (token) {
-                // 验证 Token
-                fetch(API_BASE + '/api/auth/me', {
-                    headers: { 'Authorization': 'Bearer ' + token }
-                }).then(res => res.json()).then(data => {
-                    if (data.success) {
+            // 检查是否已登录
+            const huizhiToken = localStorage.getItem(STORAGE_KEYS.HUIZHI_TOKEN);
+            const comfyOrgToken = localStorage.getItem(STORAGE_KEYS.COMFY_ORG_TOKEN);
+            
+            if (huizhiToken && comfyOrgToken) {
+                // 验证 Token 是否有效
+                fetch(`${AUTH_SERVICE_URL}/api/auth/me`, {
+                    headers: { 'Authorization': 'Bearer ' + huizhiToken }
+                }).then(res => {
+                    if (res.ok) {
                         window.location.href = '/';
                     } else {
-                        // Token 无效，清除
-                        localStorage.removeItem('comfy_token');
-                        localStorage.removeItem('comfy_refresh_token');
-                        localStorage.removeItem('comfy_user');
-                        document.cookie = 'comfy_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+                        clearTokens();
                     }
                 }).catch(() => {
-                    // 网络错误，不清除 token，可能只是暂时性问题
+                    // 认证服务不可用，但有 Token，先让用户进入
+                    // 如果 Token 无效，后续操作会失败
                 });
             }
         };

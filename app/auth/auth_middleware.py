@@ -1,13 +1,27 @@
 """
 认证中间件 - 拦截请求进行身份验证
+支持两种认证方式:
+1. ComfyUI 内置认证 (auth_manager)
+2. 绘智认证服务 (huizhi-auth-service) 的 JWT Token
 """
 from __future__ import annotations
 import logging
+import os
 from aiohttp import web
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional, Any
 
 if TYPE_CHECKING:
     from .auth_manager import AuthManager
+
+# 尝试导入 JWT
+try:
+    import jwt
+    JWT_AVAILABLE = True
+except ImportError:
+    JWT_AVAILABLE = False
+
+# 绘智认证服务配置 (与 huizhi-auth-service 保持一致)
+HUIZHI_JWT_SECRET = os.environ.get('HUIZHI_JWT_SECRET', 'huizhi-ai-secret-key-change-in-production')
 
 
 # 不需要认证的路径 (白名单)
@@ -33,6 +47,36 @@ STATIC_PREFIXES = [
     "/web/",
     "/web_custom/",  # 自定义前端资源
 ]
+
+
+class HuizhiUser:
+    """绘智用户对象 (用于兼容 ComfyUI 内部 User 接口)"""
+    def __init__(self, user_data: dict):
+        self.id = user_data.get('userId', user_data.get('id', ''))
+        self.username = user_data.get('username', '')
+        self.email = user_data.get('email', '')
+        self.role = user_data.get('role', 'user')
+        self.is_active = True
+
+
+def verify_huizhi_token(token: str) -> Optional[HuizhiUser]:
+    """
+    验证绘智认证服务签发的 JWT Token
+    """
+    if not JWT_AVAILABLE or not token:
+        return None
+    
+    try:
+        payload = jwt.decode(token, HUIZHI_JWT_SECRET, algorithms=["HS256"])
+        # 绘智 Token payload: { userId, username, email, role, iat, exp }
+        if payload.get('userId') or payload.get('username'):
+            return HuizhiUser(payload)
+    except jwt.ExpiredSignatureError:
+        logging.debug("[HuizhiAuth] Token expired")
+    except jwt.InvalidTokenError as e:
+        logging.debug(f"[HuizhiAuth] Invalid token: {e}")
+    
+    return None
 
 
 def create_auth_middleware(auth_manager: 'AuthManager', enabled: bool = True):
@@ -82,11 +126,19 @@ def create_auth_middleware(auth_manager: 'AuthManager', enabled: bool = True):
         if not token:
             token = request.cookies.get("comfy_token")
         
-        # 验证 Token
+        # 验证 Token (优先使用绘智认证服务)
         if token:
+            # 方式 1: 尝试绘智认证服务的 Token
+            huizhi_user = verify_huizhi_token(token)
+            if huizhi_user:
+                request['user'] = huizhi_user
+                request['user_id'] = huizhi_user.id
+                logging.debug(f"[HuizhiAuth] User authenticated: {huizhi_user.username}")
+                return await handler(request)
+            
+            # 方式 2: 回退到 ComfyUI 内置认证
             valid, user = auth_manager.verify_token(token)
             if valid and user:
-                # 将用户信息附加到请求
                 request['user'] = user
                 request['user_id'] = user.id
                 return await handler(request)
