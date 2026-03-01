@@ -251,28 +251,27 @@ class PromptServer():
         if args.front_end_root is not None:
             self.web_root = args.front_end_root
         else:
-            # ============= 绘智平台：前端加载优先级 =============
-            # 1. ComfyUI_frontend/dist (pnpm build 构建产物)
-            # 2. web/ 目录 (手动复制的构建产物)
-            # 3. pip 包 comfyui_frontend_package (原版兜底)
-            #
-            # 确保魔改前端始终优先于 pip 原版，避免改了源码但实际跑的是原版的问题。
-            # ====================================================
+            # ============= 绘智平台：前端加载 =============
+            # 唯一来源：ComfyUI_frontend/dist (pnpm build 构建产物)
+            # 不再回退到 web/ 或 pip 包，避免误加载官方原版。
+            # ================================================
             project_root = os.path.dirname(__file__)
             local_dist = os.path.join(project_root, 'ComfyUI_frontend', 'dist')
-            local_web = os.path.join(project_root, 'web')
 
             if os.path.exists(os.path.join(local_dist, 'index.html')):
                 self.web_root = local_dist
-                logging.info(f"[Prompt Server] ✅ 使用本地魔改前端: {local_dist}")
-            elif os.path.exists(os.path.join(local_web, 'index.html')):
-                self.web_root = local_web
-                logging.info(f"[Prompt Server] ✅ 使用 web/ 目录前端: {local_web}")
+                logging.info(f"[绘智] ✅ 使用魔改前端: {local_dist}")
             else:
+                # dist 不存在时仍然需要一个 web_root 让服务能启动
+                # 但用醒目的错误日志提醒
                 self.web_root = FrontendManager.init_frontend(args.front_end_version)
-                logging.warning(
-                    f"[Prompt Server] ⚠️ 本地前端未找到，回退到 pip 包前端: {self.web_root}\n"
-                    f"  如需使用魔改前端，请先构建: cd ComfyUI_frontend && pnpm build"
+                logging.error(
+                    f"\n{'='*60}\n"
+                    f"  ❌ 魔改前端未构建！当前加载的是官方原版前端！\n"
+                    f"  请立即执行: cd ComfyUI_frontend && pnpm build\n"
+                    f"  然后重启服务。\n"
+                    f"  回退路径: {self.web_root}\n"
+                    f"{'='*60}"
                 )
         logging.info(f"[Prompt Server] web root: {self.web_root}")
         register_assets_system(self.app, self.user_manager)
@@ -345,84 +344,10 @@ class PromptServer():
 
         @routes.get("/")
         async def get_root(request):
-            # 如果启用了认证，注入用户信息脚本
-            if args.enable_auth:
-                index_path = os.path.join(self.web_root, "index.html")
-                with open(index_path, 'r', encoding='utf-8') as f:
-                    html_content = f.read()
-                
-                # 注入 Firebase Auth 状态同步脚本 (在 <head> 中最早执行)
-                # 这个脚本必须在 ComfyUI 前端 JS 之前执行，以便模拟 Firebase 登录状态
-                firebase_sync_script = '''<script>
-(function() {
-    // 绘智 Auth 状态同步到 Firebase IndexedDB
-    var comfyOrgToken = localStorage.getItem('comfy_org_token');
-    var userStr = localStorage.getItem('huizhi_user');
-    if (!comfyOrgToken || !userStr) return;
-    
-    var FIREBASE_API_KEY = 'AIzaSyC2-fomLqgCjb7ELwta1I9cEarPK8ziTGs';
-    var storageKey = 'firebase:authUser:' + FIREBASE_API_KEY + ':[DEFAULT]';
-    
-    // 解析 token
-    var tokenPayload = {};
-    try {
-        var parts = comfyOrgToken.split('.');
-        if (parts.length === 3) tokenPayload = JSON.parse(atob(parts[1]));
-    } catch(e) {}
-    
-    var user = {};
-    try { user = JSON.parse(userStr); } catch(e) {}
-    
-    var firebaseUser = {
-        uid: tokenPayload.user_id || tokenPayload.sub || user.comfyOrgUid || '',
-        email: tokenPayload.email || user.email || '',
-        emailVerified: tokenPayload.email_verified || false,
-        displayName: user.username || '',
-        isAnonymous: false,
-        providerData: [{providerId:'password',uid:tokenPayload.email||user.email||'',displayName:user.username||'',email:tokenPayload.email||user.email||'',phoneNumber:null,photoURL:null}],
-        stsTokenManager: {
-            refreshToken: '',
-            accessToken: comfyOrgToken,
-            expirationTime: parseInt(localStorage.getItem('comfy_org_token_expiry') || Date.now() + 3600000)
-        },
-        createdAt: String(Date.now()),
-        lastLoginAt: String(Date.now()),
-        apiKey: FIREBASE_API_KEY,
-        appName: '[DEFAULT]'
-    };
-    
-    // 写入 IndexedDB
-    var req = indexedDB.open('firebaseLocalStorageDb', 1);
-    req.onupgradeneeded = function(e) {
-        var db = e.target.result;
-        if (!db.objectStoreNames.contains('firebaseLocalStorage')) {
-            db.createObjectStore('firebaseLocalStorage');
-        }
-    };
-    req.onsuccess = function(e) {
-        var db = e.target.result;
-        try {
-            var tx = db.transaction(['firebaseLocalStorage'], 'readwrite');
-            var store = tx.objectStore('firebaseLocalStorage');
-            store.put({fbase_key: storageKey, value: firebaseUser}, storageKey);
-        } catch(ex) {}
-    };
-    
-    // 同时写入 localStorage
-    try { localStorage.setItem(storageKey, JSON.stringify(firebaseUser)); } catch(e) {}
-    
-    console.log('[HuizhiAuth] Firebase state synced before page load');
-})();
-</script>'''
-                
-                # 在 <head> 最开始注入 Firebase 同步脚本
-                if '<head>' in html_content:
-                    html_content = html_content.replace('<head>', '<head>\n' + firebase_sync_script)
-                
-                response = web.Response(text=html_content, content_type='text/html')
-            else:
-                response = web.FileResponse(os.path.join(self.web_root, "index.html"))
-            
+            # External token fallback: 前端 firebaseAuthStore 会直接读取
+            # localStorage 中的 comfy_org_token 和 huizhi_user_info，
+            # 不再需要注入 Firebase IndexedDB 模拟脚本。
+            response = web.FileResponse(os.path.join(self.web_root, "index.html"))
             response.headers['Cache-Control'] = 'no-cache'
             response.headers["Pragma"] = "no-cache"
             response.headers["Expires"] = "0"

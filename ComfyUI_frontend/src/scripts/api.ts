@@ -447,6 +447,12 @@ export class ComfyApi extends EventTarget {
           addHeaderEntry(headers, key, value)
         }
       }
+    } else {
+      // Non-cloud: attach huizhi_token for backend auth middleware
+      const huizhiToken = localStorage.getItem('huizhi_token')
+      if (huizhiToken && huizhiToken !== 'null' && huizhiToken !== 'undefined') {
+        addHeaderEntry(headers, 'Authorization', `Bearer ${huizhiToken}`)
+      }
     }
 
     addHeaderEntry(headers, 'Comfy-User', this.user)
@@ -569,6 +575,12 @@ export class ComfyApi extends EventTarget {
           error
         )
       }
+    } else {
+      // Non-cloud: attach huizhi_token for backend auth middleware
+      const huizhiToken = localStorage.getItem('huizhi_token')
+      if (huizhiToken && huizhiToken !== 'null' && huizhiToken !== 'undefined') {
+        params.set('token', huizhiToken)
+      }
     }
 
     const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
@@ -603,34 +615,7 @@ export class ComfyApi extends EventTarget {
     })
 
     this.socket.addEventListener('close', () => {
-      // ============= 绘智平台：退出登录时不重连 =============
-      // 先检查退出标志，如果正在退出则不执行任何操作
-      const isLogoutInProgress = 
-        sessionStorage.getItem('comfy_logout_in_progress') === 'true' ||
-        (window as any).__HUIZHI_LOGOUT_IN_PROGRESS__ === true ||
-        (window as any).__LOGOUT_ACTIVE__ === true;
-      
-      if (isLogoutInProgress) {
-        console.log('[Huizhi] Logout in progress, skipping WebSocket reconnect and status update');
-        sessionStorage.removeItem('comfy_logout_in_progress');
-        this.socket = null;
-        return;
-      }
-      // ====================================================
-
       setTimeout(async () => {
-        // 再次检查退出标志 (在延迟后可能状态已改变)
-        const stillLoggingOut = 
-          sessionStorage.getItem('comfy_logout_in_progress') === 'true' ||
-          (window as any).__HUIZHI_LOGOUT_IN_PROGRESS__ === true ||
-          (window as any).__LOGOUT_ACTIVE__ === true;
-        
-        if (stillLoggingOut) {
-          console.log('[Huizhi] Logout still in progress, skipping WebSocket reconnect');
-          this.socket = null;
-          return;
-        }
-
         this.socket = null
         await this.createSocket(true)
       }, 300)

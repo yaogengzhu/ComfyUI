@@ -301,12 +301,48 @@
         }
 
         // ========== 存储 Token ==========
-        function saveTokens(data) {
-            localStorage.setItem(STORAGE_KEYS.HUIZHI_TOKEN, data.huizhiToken);
-            localStorage.setItem(STORAGE_KEYS.COMFY_ORG_TOKEN, data.comfyOrgToken);
+        async function saveTokens(data) {
+            console.log('[Login] saveTokens called, data keys:', Object.keys(data));
+            console.log('[Login] comfyOrgToken type:', typeof data.comfyOrgToken, 'value:', data.comfyOrgToken ? (data.comfyOrgToken.substring(0, 30) + '...') : data.comfyOrgToken);
             
-            const expiresAt = Date.now() + (data.comfyOrgTokenExpiresIn || 3600) * 1000;
-            localStorage.setItem(STORAGE_KEYS.COMFY_ORG_EXPIRY, expiresAt.toString());
+            localStorage.setItem(STORAGE_KEYS.HUIZHI_TOKEN, data.huizhiToken);
+            
+            let comfyOrgToken = data.comfyOrgToken;
+            
+            // 如果 comfyOrgToken 为空，尝试通过刷新接口获取
+            if (!comfyOrgToken || comfyOrgToken === 'null' || comfyOrgToken === 'undefined') {
+                console.warn('[Login] comfyOrgToken is missing from login response, attempting refresh...');
+                try {
+                    const refreshResp = await fetch(`${AUTH_SERVICE_URL}/api/auth/refresh-comfy-token`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${data.huizhiToken}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    if (refreshResp.ok) {
+                        const refreshData = await refreshResp.json();
+                        comfyOrgToken = refreshData.data?.comfyOrgToken;
+                        console.log('[Login] Got comfyOrgToken via refresh:', comfyOrgToken ? 'yes' : 'no');
+                    } else {
+                        console.error('[Login] Refresh failed:', refreshResp.status);
+                    }
+                } catch (refreshErr) {
+                    console.error('[Login] Refresh request failed:', refreshErr);
+                }
+            }
+            
+            // 防止存储 null/undefined 为字符串 "null"/"undefined"
+            if (comfyOrgToken && comfyOrgToken !== 'null' && comfyOrgToken !== 'undefined') {
+                localStorage.setItem(STORAGE_KEYS.COMFY_ORG_TOKEN, comfyOrgToken);
+                
+                const expiresAt = Date.now() + (data.comfyOrgTokenExpiresIn || 3600) * 1000;
+                localStorage.setItem(STORAGE_KEYS.COMFY_ORG_EXPIRY, expiresAt.toString());
+                console.log('[Login] ComfyOrg token stored, expires at:', new Date(expiresAt).toISOString());
+            } else {
+                console.error('[Login] ComfyOrg token is STILL null after refresh attempt');
+                localStorage.setItem(STORAGE_KEYS.COMFY_ORG_EXPIRY, '0');
+            }
             
             localStorage.setItem(STORAGE_KEYS.USER_INFO, JSON.stringify(data.user));
             
@@ -364,7 +400,12 @@
                 const result = await response.json();
                 
                 if (response.ok && result.data) {
-                    saveTokens(result.data);
+                    console.log('[Login] Login response data:', JSON.stringify(result.data, (key, val) => {
+                        if (key === 'comfyOrgToken' && val) return val.substring(0, 30) + '...(' + val.length + ' chars)';
+                        if (key === 'huizhiToken' && val) return val.substring(0, 20) + '...';
+                        return val;
+                    }));
+                    await saveTokens(result.data);
                     
                     // 检查是否踢掉了其他设备
                     if (result.data.kicked_device) {

@@ -69,8 +69,11 @@ export function getDeviceId(): string {
 // ============= 检查是否通过绘智服务登录 =============
 export function isHuizhiLoggedIn(): boolean {
   const huizhiToken = localStorage.getItem(HUIZHI_STORAGE_KEYS.TOKEN)
-  const comfyOrgToken = localStorage.getItem(HUIZHI_STORAGE_KEYS.COMFY_ORG_TOKEN)
-  return !!(huizhiToken && comfyOrgToken)
+  // 只要有绘智 token 就算登录了（comfyOrgToken 可能为 null/无效，会通过认证服务代理处理）
+  if (huizhiToken && huizhiToken !== 'null' && huizhiToken !== 'undefined') {
+    return true
+  }
+  return false
 }
 
 // ============= 获取绘智用户信息 =============
@@ -339,7 +342,14 @@ function handleForceLogout(message?: string): void {
 // ============= Token 刷新 =============
 export function setupTokenRefresh(): void {
   const expiryStr = localStorage.getItem(HUIZHI_STORAGE_KEYS.COMFY_ORG_EXPIRY)
-  if (!expiryStr) return
+  const comfyOrgToken = localStorage.getItem(HUIZHI_STORAGE_KEYS.COMFY_ORG_TOKEN)
+  
+  // 如果没有有效的 comfyOrgToken 或过期时间，立即刷新
+  if (!comfyOrgToken || comfyOrgToken === 'null' || comfyOrgToken === 'undefined' || !expiryStr || expiryStr === '0') {
+    console.log('[HuizhiAuth] ComfyOrg token missing or invalid, refreshing immediately')
+    refreshComfyOrgToken()
+    return
+  }
 
   const expiry = parseInt(expiryStr, 10)
   const now = Date.now()

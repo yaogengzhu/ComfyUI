@@ -29,23 +29,6 @@ const lazyUpdatePasswordContent = () =>
 const lazyComfyOrgHeader = () =>
   import('@/components/dialog/header/ComfyOrgHeader.vue')
 
-// ============= 绘智 AI 认证集成 =============
-const HUIZHI_STORAGE_KEYS = {
-  TOKEN: 'huizhi_token',
-  COMFY_ORG_TOKEN: 'comfy_org_token'
-}
-
-/**
- * 检查是否通过绘智服务登录
- */
-function isHuizhiLoggedIn(): boolean {
-  if (typeof window === 'undefined') return false
-  const huizhiToken = localStorage.getItem(HUIZHI_STORAGE_KEYS.TOKEN)
-  const comfyOrgToken = localStorage.getItem(HUIZHI_STORAGE_KEYS.COMFY_ORG_TOKEN)
-  return !!(huizhiToken && comfyOrgToken)
-}
-// ============================================
-
 export type ConfirmationDialogType =
   | 'default'
   | 'overwrite'
@@ -166,13 +149,6 @@ export const useDialogService = () => {
   async function showApiNodesSignInDialog(
     apiNodeNames: string[]
   ): Promise<boolean> {
-    // ============= 绘智 AI: 如果已登录，直接返回成功 =============
-    if (isHuizhiLoggedIn()) {
-      console.log('[Huizhi] User already logged in via Huizhi service, skipping API nodes sign-in dialog')
-      return true
-    }
-    // ============================================================
-    
     const [{ default: ApiNodesSignInContent }, { default: ComfyOrgHeader }] =
       await Promise.all([lazyApiNodesSignInContent(), lazyComfyOrgHeader()])
 
@@ -198,13 +174,6 @@ export const useDialogService = () => {
   }
 
   async function showSignInDialog(): Promise<boolean> {
-    // ============= 绘智 AI: 如果已登录，直接返回成功 =============
-    if (isHuizhiLoggedIn()) {
-      console.log('[Huizhi] User already logged in via Huizhi service, skipping sign-in dialog')
-      return true
-    }
-    // ============================================================
-    
     const [{ default: SignInContent }, { default: ComfyOrgHeader }] =
       await Promise.all([lazySignInContent(), lazyComfyOrgHeader()])
 

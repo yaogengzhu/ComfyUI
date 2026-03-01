@@ -44,9 +44,7 @@
         </div>
       </div>
 
-      <!-- 绘智登录时隐藏活动区域 -->
-      <template v-if="!isHuizhiUser">
-        <div class="flex items-center justify-between">
+      <div class="flex items-center justify-between">
           <h3>{{ $t('credits.activity') }}</h3>
           <Button
             variant="muted-textonly"
@@ -103,7 +101,6 @@
             {{ $t('credits.messageSupport') }}
           </Button>
         </div>
-      </template>
     </div>
   </div>
 </template>
@@ -126,27 +123,6 @@ import { useDialogService } from '@/services/dialogService'
 import { useCommandStore } from '@/stores/commandStore'
 import { useFirebaseAuthStore } from '@/stores/firebaseAuthStore'
 import { formatMetronomeCurrency } from '@/utils/formatUtil'
-
-// ============= 绘智 AI 认证集成 =============
-// 绘智 Token 存储键名
-const HUIZHI_STORAGE_KEYS = {
-  TOKEN: 'huizhi_token',
-  COMFY_ORG_TOKEN: 'comfy_org_token',
-  USER_INFO: 'huizhi_user_info'
-}
-
-/**
- * 检查是否通过绘智服务登录
- */
-function isHuizhiLoggedIn(): boolean {
-  const huizhiToken = localStorage.getItem(HUIZHI_STORAGE_KEYS.TOKEN)
-  const comfyOrgToken = localStorage.getItem(HUIZHI_STORAGE_KEYS.COMFY_ORG_TOKEN)
-  return !!(huizhiToken && comfyOrgToken)
-}
-
-// 绘智用户标识（用于隐藏活动区域）
-const isHuizhiUser = computed(() => isHuizhiLoggedIn())
-// ============= 绘智 AI 认证集成结束 =============
 
 interface CreditHistoryItemData {
   title: string
