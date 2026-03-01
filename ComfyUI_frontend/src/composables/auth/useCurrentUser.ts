@@ -14,7 +14,10 @@ export const useCurrentUser = () => {
   const firebaseUser = computed(() => authStore.currentUser)
   const isApiKeyLogin = computed(() => apiKeyStore.isAuthenticated)
   const isLoggedIn = computed(
-    () => !!isApiKeyLogin.value || firebaseUser.value !== null
+    () =>
+      !!isApiKeyLogin.value ||
+      firebaseUser.value !== null ||
+      authStore.isAuthenticated
   )
 
   const resolvedUserInfo = computed<AuthUserInfo | null>(() => {
@@ -24,6 +27,11 @@ export const useCurrentUser = () => {
 
     if (firebaseUser.value) {
       return { id: firebaseUser.value.uid }
+    }
+
+    // External token fallback (绘智登录)
+    if (authStore.isAuthenticated && authStore.userId) {
+      return { id: authStore.userId }
     }
 
     return null
@@ -45,14 +53,22 @@ export const useCurrentUser = () => {
     if (isApiKeyLogin.value) {
       return apiKeyStore.currentUser?.name
     }
-    return firebaseUser.value?.displayName
+    if (firebaseUser.value?.displayName) {
+      return firebaseUser.value.displayName
+    }
+    // External token fallback
+    return authStore.userEmail ?? undefined
   })
 
   const userEmail = computed(() => {
     if (isApiKeyLogin.value) {
       return apiKeyStore.currentUser?.email
     }
-    return firebaseUser.value?.email
+    if (firebaseUser.value?.email) {
+      return firebaseUser.value.email
+    }
+    // External token fallback
+    return authStore.userEmail
   })
 
   const providerName = computed(() => {
