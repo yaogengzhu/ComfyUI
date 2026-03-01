@@ -15,6 +15,23 @@ import { useFirebaseAuthStore } from '@/stores/firebaseAuthStore'
 import type { BillingPortalTargetTier } from '@/stores/firebaseAuthStore'
 import { usdToMicros } from '@/utils/formatUtil'
 
+// ============= 绘智 AI 认证集成 =============
+const HUIZHI_STORAGE_KEYS = {
+  TOKEN: 'huizhi_token',
+  COMFY_ORG_TOKEN: 'comfy_org_token',
+  USER_INFO: 'huizhi_user_info'
+}
+
+/**
+ * 检查是否通过绘智服务登录
+ */
+function isHuizhiLoggedIn(): boolean {
+  const huizhiToken = localStorage.getItem(HUIZHI_STORAGE_KEYS.TOKEN)
+  const comfyOrgToken = localStorage.getItem(HUIZHI_STORAGE_KEYS.COMFY_ORG_TOKEN)
+  return !!(huizhiToken && comfyOrgToken)
+}
+// ============= 绘智 AI 认证集成结束 =============
+
 /**
  * Service for Firebase Auth actions.
  * All actions are wrapped with error handling.
@@ -52,33 +69,34 @@ export const useFirebaseAuthActions = () => {
   }
 
   const logout = wrapWithErrorHandlingAsync(async () => {
-    const workflowStore = useWorkflowStore()
-    if (workflowStore.modifiedWorkflows.length > 0) {
-      const dialogService = useDialogService()
-      const confirmed = await dialogService.confirm({
-        title: t('auth.signOut.unsavedChangesTitle'),
-        message: t('auth.signOut.unsavedChangesMessage'),
-        type: 'dirtyClose'
-      })
-      if (!confirmed) return
+    // ============= 绘智平台：直接退出，清除所有登录态 =============
+    // 清除所有绘智相关的 Token
+    localStorage.removeItem(HUIZHI_STORAGE_KEYS.TOKEN)
+    localStorage.removeItem(HUIZHI_STORAGE_KEYS.COMFY_ORG_TOKEN)
+    localStorage.removeItem(HUIZHI_STORAGE_KEYS.USER_INFO)
+    
+    // 设置一个标志，告诉 WebSocket 不要重连
+    sessionStorage.setItem('comfy_logout_in_progress', 'true')
+    
+    // 调用 authStore 清除 Firebase 登录态
+    try {
+      await authStore.logout()
+    } catch (e) {
+      // 忽略退出过程中的错误
+      console.warn('[Huizhi] Logout error (ignored):', e)
     }
-
-    await authStore.logout()
-    toastStore.add({
-      severity: 'success',
-      summary: t('auth.signOut.success'),
-      detail: t('auth.signOut.successDetail'),
-      life: 5000
-    })
-
-    if (isCloud) {
-      try {
-        window.location.href = '/cloud/login'
-      } catch (error) {
-        // needed for local development until we bring in cloud login pages.
-        window.location.reload()
-      }
-    }
+    
+    // 停止页面上所有正在进行的请求和活动
+    window.stop()
+    
+    // 使用 setTimeout 确保在下一个事件循环中跳转，给 window.stop() 时间生效
+    setTimeout(() => {
+      window.location.href = '/login'
+    }, 50)
+    
+    // 返回一个永不 resolve 的 Promise，阻止后续代码执行
+    return new Promise(() => {})
+    // ==============================================================
   }, reportError)
 
   const sendPasswordReset = wrapWithErrorHandlingAsync(

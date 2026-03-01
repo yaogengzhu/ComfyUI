@@ -41,13 +41,15 @@
           v-if="userStore.isMultiUserServer"
           :is-small="isSmall"
         />
-        <SidebarHelpCenterIcon v-if="!isIntegratedTabBar" :is-small="isSmall" />
+        <!-- 绘智用户隐藏帮助中心图标 -->
+        <SidebarHelpCenterIcon v-if="!isIntegratedTabBar && !isHuizhiUser" :is-small="isSmall" />
         <SidebarBottomPanelToggleButton v-if="!isCloud" :is-small="isSmall" />
         <SidebarShortcutsToggleButton :is-small="isSmall" />
         <SidebarSettingsButton :is-small="isSmall" />
       </div>
     </div>
-    <HelpCenterPopups :is-small="isSmall" />
+    <!-- 绘智用户隐藏帮助中心弹窗 -->
+    <HelpCenterPopups v-if="!isHuizhiUser" :is-small="isSmall" />
   </nav>
 </template>
 
@@ -77,6 +79,27 @@ import SidebarHelpCenterIcon from './SidebarHelpCenterIcon.vue'
 import SidebarIcon from './SidebarIcon.vue'
 import SidebarLogoutIcon from './SidebarLogoutIcon.vue'
 import SidebarTemplatesButton from './SidebarTemplatesButton.vue'
+
+// ============= 绘智 AI 认证集成 =============
+// 绘智 Token 存储键名
+const HUIZHI_STORAGE_KEYS = {
+  TOKEN: 'huizhi_token',
+  COMFY_ORG_TOKEN: 'comfy_org_token',
+  USER_INFO: 'huizhi_user_info'
+}
+
+/**
+ * 检查是否通过绘智服务登录
+ */
+function isHuizhiLoggedIn(): boolean {
+  const huizhiToken = localStorage.getItem(HUIZHI_STORAGE_KEYS.TOKEN)
+  const comfyOrgToken = localStorage.getItem(HUIZHI_STORAGE_KEYS.COMFY_ORG_TOKEN)
+  return !!(huizhiToken && comfyOrgToken)
+}
+
+// 绘智用户标识（用于隐藏帮助中心图标）
+const isHuizhiUser = computed(() => isHuizhiLoggedIn())
+// ============= 绘智 AI 认证集成结束 =============
 
 const { t } = useI18n()
 const workspaceStore = useWorkspaceStore()
