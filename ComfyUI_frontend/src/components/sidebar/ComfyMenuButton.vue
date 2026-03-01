@@ -11,11 +11,11 @@
     }"
     @click="onLogoMenuClick($event)"
   >
-    <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-black">
-      <ComfyLogo
-        alt="ComfyUI Logo"
-        class="comfyui-logo h-[18px] w-[18px] text-white"
-        mode="fill"
+    <div class="flex h-8 w-8 items-center justify-center rounded-lg overflow-hidden">
+      <img
+        src="/assets/images/huizhi-logo.png"
+        alt="绘智 AI Logo"
+        class="h-8 w-8 object-cover"
       />
     </div>
   </div>
@@ -108,7 +108,6 @@ import ToggleSwitch from 'primevue/toggleswitch'
 import { computed, nextTick, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import ComfyLogo from '@/components/icons/ComfyLogo.vue'
 import { useWorkflowTemplateSelectorDialog } from '@/composables/useWorkflowTemplateSelectorDialog'
 import { useSettingStore } from '@/platform/settings/settingStore'
 import type { SettingPanelType } from '@/platform/settings/types'

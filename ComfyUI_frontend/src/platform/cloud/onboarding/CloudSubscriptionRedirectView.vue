@@ -101,8 +101,8 @@ onMounted(() => {
   >
     <div class="flex flex-col items-center gap-4">
       <img
-        src="/assets/images/comfy-logo-single.svg"
-        :alt="t('g.comfyOrgLogoAlt')"
+        src="/assets/images/huizhi-logo.png"
+        alt="绘智 AI Logo"
         class="h-16 w-16"
       />
       <p

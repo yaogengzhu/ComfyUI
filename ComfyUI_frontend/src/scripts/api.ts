@@ -603,21 +603,34 @@ export class ComfyApi extends EventTarget {
     })
 
     this.socket.addEventListener('close', () => {
+      // ============= 绘智平台：退出登录时不重连 =============
+      // 先检查退出标志，如果正在退出则不执行任何操作
+      const isLogoutInProgress = 
+        sessionStorage.getItem('comfy_logout_in_progress') === 'true' ||
+        (window as any).__HUIZHI_LOGOUT_IN_PROGRESS__ === true ||
+        (window as any).__LOGOUT_ACTIVE__ === true;
+      
+      if (isLogoutInProgress) {
+        console.log('[Huizhi] Logout in progress, skipping WebSocket reconnect and status update');
+        sessionStorage.removeItem('comfy_logout_in_progress');
+        this.socket = null;
+        return;
+      }
+      // ====================================================
+
       setTimeout(async () => {
-        // ============= 绘智平台：退出登录时不重连 =============
-        // 检查多个标志确保不会在退出登录时重连
-        const isLogoutInProgress = 
+        // 再次检查退出标志 (在延迟后可能状态已改变)
+        const stillLoggingOut = 
           sessionStorage.getItem('comfy_logout_in_progress') === 'true' ||
           (window as any).__HUIZHI_LOGOUT_IN_PROGRESS__ === true ||
           (window as any).__LOGOUT_ACTIVE__ === true;
         
-        if (isLogoutInProgress) {
-          console.log('[Huizhi] Logout in progress, skipping WebSocket reconnect');
-          sessionStorage.removeItem('comfy_logout_in_progress');
+        if (stillLoggingOut) {
+          console.log('[Huizhi] Logout still in progress, skipping WebSocket reconnect');
           this.socket = null;
           return;
         }
-        // ====================================================
+
         this.socket = null
         await this.createSocket(true)
       }, 300)

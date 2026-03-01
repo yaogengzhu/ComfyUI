@@ -905,6 +905,16 @@ function startPythonServer() {
         if (store.get('enableAuth')) {
             args.push('--enable-auth');
         }
+        
+        // ============= 绘智平台：前端加载选项 =============
+        // 使用本地前端 (已构建的 dist 目录)
+        const localFrontendPath = path.join(comfyuiPath, 'ComfyUI_frontend', 'dist');
+        if (fs.existsSync(localFrontendPath)) {
+            args.push('--front-end-root', localFrontendPath);
+            sendSplashLog(`** 使用本地前端: ${localFrontendPath}`);
+        } else {
+            sendSplashLog(`** 使用 pip 包前端 (本地前端未构建: ${localFrontendPath})`);
+        }
 
         // 发送启动日志到 splash 窗口
         sendSplashLog(`** Python 路径: ${pythonPath}`);
@@ -920,7 +930,9 @@ function startPythonServer() {
             env: {
                 ...process.env,
                 PYTHONIOENCODING: 'utf-8',
-                PYTHONLEGACYWINDOWSSTDIO: 'utf-8'
+                PYTHONLEGACYWINDOWSSTDIO: 'utf-8',
+                // 标记为桌面版本
+                __COMFYUI_DESKTOP_VERSION__: app.getVersion() || '1.0.0'
             }
         });
 

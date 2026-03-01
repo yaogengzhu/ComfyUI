@@ -248,11 +248,32 @@ class PromptServer():
         self.app = web.Application(client_max_size=max_upload_size, middlewares=middlewares)
         self.sockets = dict()
         self.sockets_metadata = dict()
-        self.web_root = (
-            FrontendManager.init_frontend(args.front_end_version)
-            if args.front_end_root is None
-            else args.front_end_root
-        )
+        if args.front_end_root is not None:
+            self.web_root = args.front_end_root
+        else:
+            # ============= 绘智平台：前端加载优先级 =============
+            # 1. ComfyUI_frontend/dist (pnpm build 构建产物)
+            # 2. web/ 目录 (手动复制的构建产物)
+            # 3. pip 包 comfyui_frontend_package (原版兜底)
+            #
+            # 确保魔改前端始终优先于 pip 原版，避免改了源码但实际跑的是原版的问题。
+            # ====================================================
+            project_root = os.path.dirname(__file__)
+            local_dist = os.path.join(project_root, 'ComfyUI_frontend', 'dist')
+            local_web = os.path.join(project_root, 'web')
+
+            if os.path.exists(os.path.join(local_dist, 'index.html')):
+                self.web_root = local_dist
+                logging.info(f"[Prompt Server] ✅ 使用本地魔改前端: {local_dist}")
+            elif os.path.exists(os.path.join(local_web, 'index.html')):
+                self.web_root = local_web
+                logging.info(f"[Prompt Server] ✅ 使用 web/ 目录前端: {local_web}")
+            else:
+                self.web_root = FrontendManager.init_frontend(args.front_end_version)
+                logging.warning(
+                    f"[Prompt Server] ⚠️ 本地前端未找到，回退到 pip 包前端: {self.web_root}\n"
+                    f"  如需使用魔改前端，请先构建: cd ComfyUI_frontend && pnpm build"
+                )
         logging.info(f"[Prompt Server] web root: {self.web_root}")
         register_assets_system(self.app, self.user_manager)
         routes = web.RouteTableDef()
@@ -394,20 +415,9 @@ class PromptServer():
 })();
 </script>'''
                 
-                # 注入用户信息脚本 (在 body 末尾)
-                user_script = '<script src="/web_custom/js/user-info.js"></script>'
-                
                 # 在 <head> 最开始注入 Firebase 同步脚本
                 if '<head>' in html_content:
                     html_content = html_content.replace('<head>', '<head>\n' + firebase_sync_script)
-                
-                # 在 </body> 前注入用户信息脚本
-                if '</body>' in html_content:
-                    html_content = html_content.replace('</body>', f'{user_script}\n</body>')
-                elif '</html>' in html_content:
-                    html_content = html_content.replace('</html>', f'{user_script}\n</html>')
-                else:
-                    html_content += user_script
                 
                 response = web.Response(text=html_content, content_type='text/html')
             else:

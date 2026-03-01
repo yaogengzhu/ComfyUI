@@ -84,9 +84,9 @@
           @click="showApiKeyForm = true"
         >
           <img
-            src="/assets/images/comfy-logo-mono.svg"
+            src="/assets/images/huizhi-logo.png"
             class="mr-2 h-5 w-5"
-            :alt="$t('g.comfy')"
+            alt="绘智 AI"
           />
           {{ t('auth.login.useApiKey') }}
         </Button>

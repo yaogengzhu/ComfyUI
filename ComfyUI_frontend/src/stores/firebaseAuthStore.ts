@@ -32,21 +32,14 @@ import type { operations } from '@/types/comfyRegistryTypes'
 import { useFeatureFlags } from '@/composables/useFeatureFlags'
 
 // ============= 绘智 AI 认证集成 =============
-// 绘智 Token 存储键名
-const HUIZHI_STORAGE_KEYS = {
-  TOKEN: 'huizhi_token',
-  COMFY_ORG_TOKEN: 'comfy_org_token',
-  USER_INFO: 'huizhi_user_info'
-}
-
-/**
- * 检查是否通过绘智服务登录
- */
-function isHuizhiLoggedIn(): boolean {
-  const huizhiToken = localStorage.getItem(HUIZHI_STORAGE_KEYS.TOKEN)
-  const comfyOrgToken = localStorage.getItem(HUIZHI_STORAGE_KEYS.COMFY_ORG_TOKEN)
-  return !!(huizhiToken && comfyOrgToken)
-}
+// 导入绘智认证服务
+import {
+  HUIZHI_STORAGE_KEYS,
+  isHuizhiLoggedIn,
+  getHuizhiUserInfo,
+  initHuizhiAuthService,
+  stopDeviceCheckPolling
+} from '@/services/huizhiAuthService'
 
 /**
  * 获取绘智服务提供的 ComfyOrg Token
@@ -56,27 +49,12 @@ function getHuizhiComfyOrgToken(): string | null {
 }
 
 /**
- * 获取绘智用户信息
- */
-function getHuizhiUserInfo(): { email: string; username: string; uid: string } | null {
-  try {
-    const userInfoStr = localStorage.getItem(HUIZHI_STORAGE_KEYS.USER_INFO)
-    if (userInfoStr) {
-      return JSON.parse(userInfoStr)
-    }
-  } catch (e) {
-    console.warn('[Huizhi] Failed to parse user info:', e)
-  }
-  return null
-}
-
-/**
  * 创建模拟的 Firebase User 对象
  * 用于满足 UI 组件的类型需求
  */
-function createMockFirebaseUser(userInfo: { email: string; username: string; uid: string }): Partial<User> {
+function createMockFirebaseUser(userInfo: { email: string; username: string; uid?: string }): Partial<User> {
   return {
-    uid: userInfo.uid,
+    uid: userInfo.uid || 'huizhi-user',
     email: userInfo.email,
     displayName: userInfo.username,
     emailVerified: true,
@@ -208,6 +186,9 @@ export const useFirebaseAuthStore = defineStore('firebaseAuth', () => {
     console.log('[Huizhi] User already logged in via Huizhi service:', huizhiUserInfo.value.email)
     currentUser.value = createMockFirebaseUser(huizhiUserInfo.value) as User
     isInitialized.value = true
+    
+    // 初始化绘智认证服务 (包括设备检查轮询和 Token 自动刷新)
+    initHuizhiAuthService()
   }
 
   // 监听 localStorage 变化，实时更新绘智登录状态
@@ -389,14 +370,7 @@ export const useFirebaseAuthStore = defineStore('firebaseAuth', () => {
   }
 
   const fetchBalance = async (): Promise<GetCustomerBalanceResponse | null> => {
-    // ============= 绘智用户跳过余额获取 =============
-    // 绘智用户没有真正的 ComfyOrg 账户，调用余额 API 会报错 "Failed to find customer"
-    if (huizhiLoggedIn.value) {
-      console.log('[Huizhi] Skipping fetchBalance for Huizhi user - no ComfyOrg customer account')
-      return null
-    }
-    // ================================================
-    
+    // 绘智用户如果有 ComfyOrg Token，也可以获取余额
     isFetchingBalance.value = true
     try {
       const authHeader = await getAuthHeader()
@@ -437,19 +411,14 @@ export const useFirebaseAuthStore = defineStore('firebaseAuth', () => {
   }
 
   const createCustomer = async (): Promise<CreateCustomerResponse> => {
-    // ============= 绘智用户跳过创建客户 =============
-    // 绘智用户没有真正的 ComfyOrg 账户
-    if (huizhiLoggedIn.value) {
-      console.log('[Huizhi] Skipping createCustomer for Huizhi user')
-      return { id: huizhiUserInfo.value?.uid || 'huizhi-user' } as CreateCustomerResponse
-    }
-    // ================================================
-    
+    // 绘智用户如果有 ComfyOrg Token，也可以创建客户
     const authHeader = await getAuthHeader()
     if (!authHeader) {
       throw new FirebaseAuthStoreError(t('toastMessages.userNotAuthenticated'))
     }
 
+    console.log('[Auth] Creating customer with header:', JSON.stringify(authHeader).substring(0, 100) + '...')
+    
     const createCustomerRes = await fetch(buildApiUrl('/customers'), {
       method: 'POST',
       headers: {
@@ -457,16 +426,31 @@ export const useFirebaseAuthStore = defineStore('firebaseAuth', () => {
         'Content-Type': 'application/json'
       }
     })
+    
+    console.log('[Auth] Create customer response status:', createCustomerRes.status, createCustomerRes.statusText)
+    
     if (!createCustomerRes.ok) {
+      // 获取详细错误信息
+      let errorDetail = createCustomerRes.statusText
+      try {
+        const errorJson = await createCustomerRes.json()
+        console.error('[Auth] Create customer error:', errorJson)
+        errorDetail = errorJson.message || errorJson.error || JSON.stringify(errorJson)
+      } catch (e) {
+        console.error('[Auth] Failed to parse error response')
+      }
+      
       throw new FirebaseAuthStoreError(
         t('toastMessages.failedToCreateCustomer', {
-          error: createCustomerRes.statusText
+          error: errorDetail
         })
       )
     }
 
     const createCustomerResJson: CreateCustomerResponse =
       await createCustomerRes.json()
+    console.log('[Auth] Create customer success:', createCustomerResJson)
+    
     if (!createCustomerResJson?.id) {
       throw new FirebaseAuthStoreError(
         t('toastMessages.failedToCreateCustomer', {
@@ -588,9 +572,20 @@ export const useFirebaseAuthStore = defineStore('firebaseAuth', () => {
     // ============= 清除绘智登录状态 =============
     if (huizhiLoggedIn.value) {
       console.log('[Huizhi] Logging out from Huizhi service')
+      
+      // 停止设备检查轮询
+      stopDeviceCheckPolling()
+      
+      // 清除本地存储
       localStorage.removeItem(HUIZHI_STORAGE_KEYS.TOKEN)
       localStorage.removeItem(HUIZHI_STORAGE_KEYS.COMFY_ORG_TOKEN)
+      localStorage.removeItem(HUIZHI_STORAGE_KEYS.COMFY_ORG_EXPIRY)
       localStorage.removeItem(HUIZHI_STORAGE_KEYS.USER_INFO)
+      localStorage.removeItem(HUIZHI_STORAGE_KEYS.DEVICE_ID)
+      localStorage.removeItem(HUIZHI_STORAGE_KEYS.SESSION_ID)
+      localStorage.removeItem('huizhi_user_info')
+      localStorage.removeItem('comfy_user')
+      
       huizhiLoggedIn.value = false
       huizhiUserInfo.value = null
       currentUser.value = null
@@ -619,14 +614,7 @@ export const useFirebaseAuthStore = defineStore('firebaseAuth', () => {
   const addCredits = async (
     requestBodyContent: CreditPurchasePayload
   ): Promise<CreditPurchaseResponse> => {
-    // ============= 绘智用户跳过充值 =============
-    // 绘智用户没有真正的 ComfyOrg 账户，不支持充值
-    if (huizhiLoggedIn.value) {
-      console.log('[Huizhi] Skipping addCredits for Huizhi user - not supported')
-      throw new FirebaseAuthStoreError('绘智用户暂不支持此功能')
-    }
-    // ============================================
-    
+    // 绘智用户如果有 ComfyOrg Token，也可以购买积分
     const authHeader = await getAuthHeader()
     if (!authHeader) {
       throw new FirebaseAuthStoreError(t('toastMessages.userNotAuthenticated'))
@@ -667,14 +655,7 @@ export const useFirebaseAuthStore = defineStore('firebaseAuth', () => {
   const accessBillingPortal = async (
     targetTier?: BillingPortalTargetTier
   ): Promise<AccessBillingPortalResponse> => {
-    // ============= 绘智用户跳过账单门户 =============
-    // 绘智用户没有真正的 ComfyOrg 账户，不支持账单管理
-    if (huizhiLoggedIn.value) {
-      console.log('[Huizhi] Skipping accessBillingPortal for Huizhi user - not supported')
-      throw new FirebaseAuthStoreError('绘智用户暂不支持此功能')
-    }
-    // ================================================
-    
+    // 绘智用户如果有 ComfyOrg Token，也可以访问账单门户
     const authHeader = await getAuthHeader()
     if (!authHeader) {
       throw new FirebaseAuthStoreError(t('toastMessages.userNotAuthenticated'))
