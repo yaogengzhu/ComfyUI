@@ -649,59 +649,10 @@ export function handleHuizhiLogout(confirmLogout = true): void {
 
   console.log('[HuizhiAuth] Step 7: Cookies cleared')
 
-  // ============ 第8步: 停止页面上所有活动 ============
-  try {
-    window.stop()
-  } catch (e) {
-    /* ignore */
-  }
-
-  console.log('[HuizhiAuth] Step 8: Page activities stopped')
   console.log('[HuizhiAuth] ========== Redirecting to login page ==========')
 
-  // ============ 第9步: 强制跳转 ============
-  const doRedirect = () => {
-    try {
-      // 方法1: location.replace (推荐，不保留历史记录)
-      window.location.replace('/login?logout=1')
-    } catch (e) {
-      try {
-        // 方法2: location.href
-        window.location.href = '/login?logout=1'
-      } catch (e2) {
-        try {
-          // 方法3: location.assign
-          window.location.assign('/login?logout=1')
-        } catch (e3) {
-          // 方法4: 直接设置 location
-          ;(document as any).location = '/login?logout=1'
-        }
-      }
-    }
-  }
-
-  // 立即尝试跳转
-  doRedirect()
-
-  // 使用 Promise 的方式来延迟重试
-  Promise.resolve()
-    .then(() => {
-      return new Promise<void>((resolve) => {
-        // 使用 requestAnimationFrame 作为备用延迟机制
-        if (window.requestAnimationFrame) {
-          window.requestAnimationFrame(() => {
-            window.requestAnimationFrame(() => {
-              resolve()
-            })
-          })
-        } else {
-          resolve()
-        }
-      })
-    })
-    .then(() => {
-      doRedirect()
-    })
+  // ============ 第8步: 强制跳转（不要调 window.stop()，会取消导航） ============
+  window.location.replace('/login?logout=1')
 }
 
 // ============= 初始化绘智认证服务 =============

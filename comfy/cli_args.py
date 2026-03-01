@@ -180,7 +180,8 @@ parser.add_argument("--disable-api-nodes", action="store_true", help="Disable lo
 parser.add_argument("--multi-user", action="store_true", help="Enables per-user storage.")
 
 # Authentication options
-parser.add_argument("--enable-auth", action="store_true", help="Enable user authentication system.")
+parser.add_argument("--enable-auth", action="store_true", default=True, help="Enable user authentication system (enabled by default).")
+parser.add_argument("--disable-auth", action="store_true", default=False, help="Disable user authentication system.")
 parser.add_argument("--auth-secret-key", type=str, default=None, help="Secret key for JWT token signing. If not provided, a random key will be generated.")
 
 parser.add_argument("--verbose", default='INFO', const='DEBUG', nargs="?", choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], help='Set the logging level')

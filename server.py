@@ -219,14 +219,15 @@ class PromptServer():
 
         # Initialize auth manager
         self.auth_manager = None
-        if args.enable_auth:
+        auth_enabled = args.enable_auth and not getattr(args, 'disable_auth', False)
+        if auth_enabled:
             self.auth_manager = AuthManager(secret_key=args.auth_secret_key)
             logging.info("[Auth] Authentication system enabled")
 
         middlewares = [cache_control, deprecation_warning]
         
         # Add auth middleware if enabled
-        if args.enable_auth and self.auth_manager:
+        if auth_enabled and self.auth_manager:
             middlewares.append(create_auth_middleware(self.auth_manager, enabled=True))
             logging.info("[Auth] Auth middleware added")
         

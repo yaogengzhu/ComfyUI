@@ -20,7 +20,7 @@ import { useConflictDetection } from '@/workbench/extensions/manager/composables
 import { electronAPI } from '@/utils/envUtil'
 import { isDesktop } from '@/platform/distribution/types'
 import { app } from '@/scripts/app'
-import { isHuizhiLoggedIn, initHuizhiAuthService } from '@/services/huizhiAuthService'
+import { initHuizhiAuthService } from '@/services/huizhiAuthService'
 
 const workspaceStore = useWorkspaceStore()
 app.extensionManager = useWorkspaceStore()
@@ -41,14 +41,6 @@ const showContextMenu = (event: MouseEvent) => {
 
 onMounted(() => {
   window['__COMFYUI_FRONTEND_VERSION__'] = config.app_version
-
-  // 检查绘智登录状态，未登录则跳转到登录页
-  if (!isHuizhiLoggedIn()) {
-    if (!window.location.pathname.startsWith('/login')) {
-      window.location.href = '/login'
-      return
-    }
-  }
 
   // 初始化绘智认证服务 (Token 刷新 + 设备检查轮询)
   initHuizhiAuthService()
