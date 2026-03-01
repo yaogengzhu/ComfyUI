@@ -44,63 +44,66 @@
         </div>
       </div>
 
-      <div class="flex items-center justify-between">
-        <h3>{{ $t('credits.activity') }}</h3>
-        <Button
-          variant="muted-textonly"
-          :loading="loading"
-          @click="handleCreditsHistoryClick"
-        >
-          <i class="pi pi-arrow-up-right" />
-          {{ $t('credits.invoiceHistory') }}
-        </Button>
-      </div>
+      <!-- 绘智登录时隐藏活动区域 -->
+      <template v-if="!isHuizhiUser">
+        <div class="flex items-center justify-between">
+          <h3>{{ $t('credits.activity') }}</h3>
+          <Button
+            variant="muted-textonly"
+            :loading="loading"
+            @click="handleCreditsHistoryClick"
+          >
+            <i class="pi pi-arrow-up-right" />
+            {{ $t('credits.invoiceHistory') }}
+          </Button>
+        </div>
 
-      <template v-if="creditHistory.length > 0">
-        <div class="grow">
-          <DataTable :value="creditHistory" :show-headers="false">
-            <Column field="title" :header="$t('g.name')">
-              <template #body="{ data }">
-                <div class="text-sm font-medium">{{ data.title }}</div>
-                <div class="text-xs text-muted">{{ data.timestamp }}</div>
-              </template>
-            </Column>
-            <Column field="amount" :header="$t('g.amount')">
-              <template #body="{ data }">
-                <div
-                  :class="[
-                    'text-center text-base font-medium',
-                    data.isPositive ? 'text-sky-500' : 'text-red-400'
-                  ]"
-                >
-                  {{ data.isPositive ? '+' : '-' }}${{
-                    formatMetronomeCurrency(data.amount, 'usd')
-                  }}
-                </div>
-              </template>
-            </Column>
-          </DataTable>
+        <template v-if="creditHistory.length > 0">
+          <div class="grow">
+            <DataTable :value="creditHistory" :show-headers="false">
+              <Column field="title" :header="$t('g.name')">
+                <template #body="{ data }">
+                  <div class="text-sm font-medium">{{ data.title }}</div>
+                  <div class="text-xs text-muted">{{ data.timestamp }}</div>
+                </template>
+              </Column>
+              <Column field="amount" :header="$t('g.amount')">
+                <template #body="{ data }">
+                  <div
+                    :class="[
+                      'text-center text-base font-medium',
+                      data.isPositive ? 'text-sky-500' : 'text-red-400'
+                    ]"
+                  >
+                    {{ data.isPositive ? '+' : '-' }}${{
+                      formatMetronomeCurrency(data.amount, 'usd')
+                    }}
+                  </div>
+                </template>
+              </Column>
+            </DataTable>
+          </div>
+        </template>
+
+        <Divider />
+
+        <UsageLogsTable ref="usageLogsTableRef" />
+
+        <div class="flex flex-row gap-2">
+          <Button variant="muted-textonly" @click="handleFaqClick">
+            <i class="pi pi-question-circle" />
+            {{ $t('credits.faqs') }}
+          </Button>
+          <Button variant="muted-textonly" @click="handleOpenPartnerNodesInfo">
+            <i class="pi pi-question-circle" />
+            {{ $t('subscription.partnerNodesCredits') }}
+          </Button>
+          <Button variant="muted-textonly" @click="handleMessageSupport">
+            <i class="pi pi-comments" />
+            {{ $t('credits.messageSupport') }}
+          </Button>
         </div>
       </template>
-
-      <Divider />
-
-      <UsageLogsTable ref="usageLogsTableRef" />
-
-      <div class="flex flex-row gap-2">
-        <Button variant="muted-textonly" @click="handleFaqClick">
-          <i class="pi pi-question-circle" />
-          {{ $t('credits.faqs') }}
-        </Button>
-        <Button variant="muted-textonly" @click="handleOpenPartnerNodesInfo">
-          <i class="pi pi-question-circle" />
-          {{ $t('subscription.partnerNodesCredits') }}
-        </Button>
-        <Button variant="muted-textonly" @click="handleMessageSupport">
-          <i class="pi pi-comments" />
-          {{ $t('credits.messageSupport') }}
-        </Button>
-      </div>
     </div>
   </div>
 </template>
@@ -123,6 +126,27 @@ import { useDialogService } from '@/services/dialogService'
 import { useCommandStore } from '@/stores/commandStore'
 import { useFirebaseAuthStore } from '@/stores/firebaseAuthStore'
 import { formatMetronomeCurrency } from '@/utils/formatUtil'
+
+// ============= 绘智 AI 认证集成 =============
+// 绘智 Token 存储键名
+const HUIZHI_STORAGE_KEYS = {
+  TOKEN: 'huizhi_token',
+  COMFY_ORG_TOKEN: 'comfy_org_token',
+  USER_INFO: 'huizhi_user_info'
+}
+
+/**
+ * 检查是否通过绘智服务登录
+ */
+function isHuizhiLoggedIn(): boolean {
+  const huizhiToken = localStorage.getItem(HUIZHI_STORAGE_KEYS.TOKEN)
+  const comfyOrgToken = localStorage.getItem(HUIZHI_STORAGE_KEYS.COMFY_ORG_TOKEN)
+  return !!(huizhiToken && comfyOrgToken)
+}
+
+// 绘智用户标识（用于隐藏活动区域）
+const isHuizhiUser = computed(() => isHuizhiLoggedIn())
+// ============= 绘智 AI 认证集成结束 =============
 
 interface CreditHistoryItemData {
   title: string

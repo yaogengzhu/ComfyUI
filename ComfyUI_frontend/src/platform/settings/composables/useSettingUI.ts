@@ -17,6 +17,24 @@ import type { NavGroupData } from '@/types/navTypes'
 import { normalizeI18nKey } from '@/utils/formatUtil'
 import { buildTree } from '@/utils/treeUtil'
 
+// ============= 绘智 AI 认证集成 =============
+// 绘智 Token 存储键名
+const HUIZHI_STORAGE_KEYS = {
+  TOKEN: 'huizhi_token',
+  COMFY_ORG_TOKEN: 'comfy_org_token',
+  USER_INFO: 'huizhi_user_info'
+}
+
+/**
+ * 检查是否通过绘智服务登录
+ */
+function isHuizhiLoggedIn(): boolean {
+  const huizhiToken = localStorage.getItem(HUIZHI_STORAGE_KEYS.TOKEN)
+  const comfyOrgToken = localStorage.getItem(HUIZHI_STORAGE_KEYS.COMFY_ORG_TOKEN)
+  return !!(huizhiToken && comfyOrgToken)
+}
+// ============= 绘智 AI 认证集成结束 =============
+
 const CATEGORY_ICONS: Record<string, string> = {
   '3D': 'icon-[lucide--box]',
   about: 'icon-[lucide--info]',
@@ -327,11 +345,13 @@ export function useSettingUI(
   // Sidebar structure when team workspaces is disabled (legacy)
   const legacyMenuTreeNodes = computed<SettingTreeNode[]>(() => [
     // Account settings - show different panels based on distribution and auth state
+    // 绘智登录时隐藏用户面板
     {
       key: 'account',
       label: 'Account',
       children: [
-        userPanel.node,
+        // 绘智登录时不显示用户面板
+        ...(!isHuizhiLoggedIn() ? [userPanel.node] : []),
         ...(isLoggedIn.value &&
         shouldShowPlanCreditsPanel.value &&
         subscriptionPanel
