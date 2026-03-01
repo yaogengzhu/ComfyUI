@@ -605,11 +605,17 @@ export class ComfyApi extends EventTarget {
     this.socket.addEventListener('close', () => {
       setTimeout(async () => {
         // ============= 绘智平台：退出登录时不重连 =============
-        // 检查是否正在退出登录，如果是则不重连
-        if (sessionStorage.getItem('comfy_logout_in_progress') === 'true') {
-          console.log('[Huizhi] Logout in progress, skipping WebSocket reconnect')
-          sessionStorage.removeItem('comfy_logout_in_progress')
-          return
+        // 检查多个标志确保不会在退出登录时重连
+        const isLogoutInProgress = 
+          sessionStorage.getItem('comfy_logout_in_progress') === 'true' ||
+          (window as any).__HUIZHI_LOGOUT_IN_PROGRESS__ === true ||
+          (window as any).__LOGOUT_ACTIVE__ === true;
+        
+        if (isLogoutInProgress) {
+          console.log('[Huizhi] Logout in progress, skipping WebSocket reconnect');
+          sessionStorage.removeItem('comfy_logout_in_progress');
+          this.socket = null;
+          return;
         }
         // ====================================================
         this.socket = null

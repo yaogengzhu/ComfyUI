@@ -556,8 +556,8 @@
         const roleText = user.role === 'admin' ? '管理员' : '用户';
         const roleClass = user.role === 'admin' ? 'admin' : '';
 
-        // 检查 Token 状态
-        const tokenStatus = getTokenStatus();
+        // 检查 Token 状态（后台使用，不再显示在界面上）
+        // const tokenStatus = getTokenStatus();
 
         panel.innerHTML = `
             <div class="user-section" id="user-section-btn">
@@ -566,10 +566,6 @@
                     <span class="user-name">${escapeHtml(user.username)}</span>
                     <span class="user-role ${roleClass}">${roleText}</span>
                 </div>
-            </div>
-            <div class="token-status ${tokenStatus.class}" id="token-status" title="ComfyOrg API 状态">
-                <span class="token-dot"></span>
-                <span>${tokenStatus.text}</span>
             </div>
             <div class="divider"></div>
             <button class="logout-btn" id="logout-btn">退出</button>
@@ -582,9 +578,6 @@
         
         // 绑定事件
         bindEvents();
-        
-        // 定期更新 Token 状态显示
-        setInterval(updateTokenStatusDisplay, 60000);
     }
 
     function getTokenStatus() {
@@ -627,24 +620,6 @@
         const createdAtStr = createdAt ? new Date(createdAt).toLocaleString('zh-CN') : '未知';
         const lastLoginStr = lastLogin ? new Date(lastLogin).toLocaleString('zh-CN') : '首次登录';
         
-        // ComfyOrg 状态
-        const comfyOrgToken = localStorage.getItem(STORAGE_KEYS.COMFY_ORG_TOKEN);
-        const expiryStr = localStorage.getItem(STORAGE_KEYS.COMFY_ORG_EXPIRY);
-        let comfyStatus = '未绑定';
-        let comfyStatusClass = 'warning';
-        
-        if (comfyOrgToken && expiryStr) {
-            const remaining = parseInt(expiryStr, 10) - Date.now();
-            if (remaining > 0) {
-                const minutes = Math.round(remaining / 60000);
-                comfyStatus = `有效 (${minutes} 分钟)`;
-                comfyStatusClass = 'success';
-            } else {
-                comfyStatus = '已过期，需刷新';
-                comfyStatusClass = 'warning';
-            }
-        }
-        
         modal.innerHTML = `
             <div class="modal-content">
                 <div class="modal-header">
@@ -672,13 +647,6 @@
                         <span class="info-label">上次登录</span>
                         <span class="info-value">${lastLoginStr}</span>
                     </div>
-                    <div class="info-row">
-                        <span class="info-label">ComfyOrg API</span>
-                        <span class="info-value ${comfyStatusClass}">${comfyStatus}</span>
-                    </div>
-                    <a href="https://platform.comfy.org" target="_blank" class="comfy-link">
-                        💳 前往 ComfyOrg 充值 API 额度
-                    </a>
                 </div>
             </div>
         `;
@@ -734,31 +702,269 @@
             return;
         }
 
-        // 清除定时器
+        console.log('[HuizhiAuth] ========== Starting logout process ==========');
+
+        // ============ 第1步: 立即设置全局退出标志 ============
+        // 这些标志会被 api.ts 中的 WebSocket 重连逻辑检查
+        window.__HUIZHI_LOGOUT_IN_PROGRESS__ = true;
+        sessionStorage.setItem('comfy_logout_in_progress', 'true');
+        
+        // 在 window 上也标记，防止任何异步代码检查
+        Object.defineProperty(window, '__LOGOUT_ACTIVE__', {
+            value: true,
+            writable: false,
+            configurable: false
+        });
+        
+        console.log('[HuizhiAuth] Step 1: Logout flags set');
+
+        // ============ 第2步: 保存原始 WebSocket 和 fetch ============
+        const OriginalWebSocket = window.WebSocket;
+        const originalFetch = window.fetch;
+
+        // ============ 第3步: 清除所有定时器 ============
         if (tokenRefreshTimer) {
             clearTimeout(tokenRefreshTimer);
             tokenRefreshTimer = null;
         }
-
-        // 调用登出 API
-        const huizhiToken = localStorage.getItem(STORAGE_KEYS.HUIZHI_TOKEN);
-        if (huizhiToken) {
-            fetch(`${AUTH_SERVICE_URL}/api/auth/logout`, {
-                method: 'POST',
-                headers: { 'Authorization': 'Bearer ' + huizhiToken }
-            }).catch(() => {});
+        
+        // 暴力清除所有 setTimeout 和 setInterval
+        // 获取当前最高 ID
+        const highestTimeoutId = setTimeout(() => {}, 0);
+        const highestIntervalId = setInterval(() => {}, 10000);
+        clearInterval(highestIntervalId);
+        
+        console.log('[HuizhiAuth] Step 3: Clearing timers up to ID', Math.max(highestTimeoutId, highestIntervalId));
+        
+        for (let i = 0; i <= Math.max(highestTimeoutId, highestIntervalId) + 100; i++) {
+            try { clearTimeout(i); } catch(e) {}
+            try { clearInterval(i); } catch(e) {}
         }
+        
+        // 覆盖 setTimeout 和 setInterval 阻止新的定时器
+        const noopTimer = () => {
+            console.log('[HuizhiAuth] Timer blocked during logout');
+            return -1;
+        };
+        window.setTimeout = noopTimer;
+        window.setInterval = noopTimer;
+        
+        console.log('[HuizhiAuth] Step 3: All timers cleared and blocked');
 
-        // 清除本地存储
-        Object.values(STORAGE_KEYS).forEach(key => localStorage.removeItem(key));
-        localStorage.removeItem('comfy_user');
-        localStorage.removeItem('comfy_refresh_token');
+        // ============ 第4步: 关闭 WebSocket 连接 ============
+        const closeWebSocket = (socket, name) => {
+            if (!socket) return;
+            try {
+                // 先移除所有事件监听器
+                socket.onopen = null;
+                socket.onclose = null;
+                socket.onerror = null;
+                socket.onmessage = null;
+                
+                // 如果 socket 还在连接中，强制关闭
+                if (socket.readyState === WebSocket.CONNECTING || 
+                    socket.readyState === WebSocket.OPEN) {
+                    socket.close(1000, 'User logout');
+                }
+                console.log('[HuizhiAuth] WebSocket closed:', name);
+            } catch (e) {
+                console.warn('[HuizhiAuth] Error closing WebSocket:', name, e);
+            }
+        };
 
-        // 清除 Cookie
-        document.cookie = 'comfy_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+        // 关闭 ComfyUI API 的 WebSocket
+        if (window.app && window.app.api && window.app.api.socket) {
+            closeWebSocket(window.app.api.socket, 'app.api.socket');
+            window.app.api.socket = null;
+        }
+        
+        // 尝试查找并关闭其他可能的 WebSocket
+        if (window.api && window.api.socket) {
+            closeWebSocket(window.api.socket, 'api.socket');
+            window.api.socket = null;
+        }
+        
+        console.log('[HuizhiAuth] Step 4: WebSocket connections closed');
 
-        // 跳转到登录页
-        window.location.href = '/login?logout=1';
+        // ============ 第5步: 覆盖 WebSocket 构造函数阻止重连 ============
+        window.WebSocket = function(url) {
+            console.log('[HuizhiAuth] WebSocket connection BLOCKED:', url);
+            // 返回一个假的 WebSocket 对象
+            const fakeSocket = {
+                url: url,
+                readyState: 3, // CLOSED
+                bufferedAmount: 0,
+                extensions: '',
+                protocol: '',
+                binaryType: 'blob',
+                onopen: null,
+                onclose: null,
+                onerror: null,
+                onmessage: null,
+                send: function() { console.log('[HuizhiAuth] Fake WS send blocked'); },
+                close: function() { console.log('[HuizhiAuth] Fake WS close called'); },
+                addEventListener: function() {},
+                removeEventListener: function() {},
+                dispatchEvent: function() { return false; }
+            };
+            // 模拟连接失败
+            setTimeout(() => {
+                if (fakeSocket.onerror) fakeSocket.onerror(new Event('error'));
+            }, 0);
+            return fakeSocket;
+        };
+        window.WebSocket.CONNECTING = 0;
+        window.WebSocket.OPEN = 1;
+        window.WebSocket.CLOSING = 2;
+        window.WebSocket.CLOSED = 3;
+        
+        console.log('[HuizhiAuth] Step 5: WebSocket constructor replaced');
+
+        // ============ 第6步: 覆盖 fetch 阻止网络请求 ============
+        window.fetch = function(url) {
+            console.log('[HuizhiAuth] Fetch BLOCKED:', url);
+            return Promise.reject(new Error('Logout in progress - fetch blocked'));
+        };
+        
+        // 同时覆盖 XMLHttpRequest
+        const OriginalXHR = window.XMLHttpRequest;
+        window.XMLHttpRequest = function() {
+            console.log('[HuizhiAuth] XMLHttpRequest BLOCKED');
+            return {
+                open: function() {},
+                send: function() {},
+                abort: function() {},
+                setRequestHeader: function() {},
+                addEventListener: function() {},
+                removeEventListener: function() {}
+            };
+        };
+        
+        console.log('[HuizhiAuth] Step 6: fetch and XHR blocked');
+
+        // ============ 第7步: 清除本地存储 ============
+        // 清除绘智相关
+        Object.values(STORAGE_KEYS).forEach(key => {
+            try { localStorage.removeItem(key); } catch(e) {}
+        });
+        
+        // 清除其他可能的存储
+        const keysToRemove = [
+            'comfy_user', 'comfy_refresh_token', 'huizhi_user_info',
+            'comfy_token', 'clientId'
+        ];
+        keysToRemove.forEach(key => {
+            try { localStorage.removeItem(key); } catch(e) {}
+        });
+
+        // 清除 Firebase 相关
+        const allKeys = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            allKeys.push(localStorage.key(i));
+        }
+        allKeys.forEach(key => {
+            if (key && (key.includes('firebase') || key.includes('comfy') || key.includes('huizhi'))) {
+                try { localStorage.removeItem(key); } catch(e) {}
+            }
+        });
+        
+        // 清除 sessionStorage
+        try {
+            // 保留 logout 标志，其他都清除
+            const logoutFlag = sessionStorage.getItem('comfy_logout_in_progress');
+            sessionStorage.clear();
+            sessionStorage.setItem('comfy_logout_in_progress', 'true');
+        } catch(e) {}
+
+        // 清除 IndexedDB (Firebase 存储)
+        try {
+            indexedDB.deleteDatabase('firebaseLocalStorageDb');
+        } catch (e) {}
+
+        console.log('[HuizhiAuth] Step 7: Local storage cleared');
+
+        // ============ 第8步: 清除 Cookie ============
+        const clearCookies = () => {
+            const cookies = document.cookie.split(';');
+            for (let cookie of cookies) {
+                const name = cookie.split('=')[0].trim();
+                document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+                document.cookie = `${name}=; path=/; domain=${window.location.hostname}; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+            }
+        };
+        clearCookies();
+        
+        console.log('[HuizhiAuth] Step 8: Cookies cleared');
+
+        // ============ 第9步: 停止页面上所有活动 ============
+        try {
+            window.stop();
+        } catch (e) {}
+        
+        // 移除所有可能的事件监听器
+        try {
+            // 创建一个新的空事件目标来替换 api
+            if (window.api) {
+                window.api.socket = null;
+            }
+            if (window.app && window.app.api) {
+                window.app.api.socket = null;
+            }
+        } catch(e) {}
+
+        console.log('[HuizhiAuth] Step 9: Page activities stopped');
+        console.log('[HuizhiAuth] ========== Redirecting to login page ==========');
+
+        // ============ 第10步: 强制跳转 ============
+        // 使用原生方式确保跳转成功
+        const doRedirect = () => {
+            try {
+                // 方法1: location.replace (推荐，不保留历史记录)
+                window.location.replace('/login?logout=1');
+            } catch (e) {
+                try {
+                    // 方法2: location.href
+                    window.location.href = '/login?logout=1';
+                } catch (e2) {
+                    try {
+                        // 方法3: location.assign
+                        window.location.assign('/login?logout=1');
+                    } catch (e3) {
+                        // 方法4: 直接设置 location
+                        document.location = '/login?logout=1';
+                    }
+                }
+            }
+        };
+        
+        // 立即尝试跳转
+        doRedirect();
+        
+        // 如果上面的跳转被阻止，100ms 后再次尝试
+        // 注意：这里我们需要使用原始的 setTimeout，因为我们已经覆盖了它
+        // 但由于我们马上就要跳转，这应该不是问题
+        const originalSetTimeout = Function.prototype.call.bind(
+            Object.getOwnPropertyDescriptor(Window.prototype, 'setTimeout')?.value || 
+            (() => {})
+        );
+        
+        // 使用 Promise 的方式来延迟
+        Promise.resolve().then(() => {
+            return new Promise(resolve => {
+                // 使用 requestAnimationFrame 作为备用延迟机制
+                if (window.requestAnimationFrame) {
+                    window.requestAnimationFrame(() => {
+                        window.requestAnimationFrame(() => {
+                            resolve();
+                        });
+                    });
+                } else {
+                    resolve();
+                }
+            });
+        }).then(() => {
+            doRedirect();
+        });
     }
 
     // ========== 启动 ==========

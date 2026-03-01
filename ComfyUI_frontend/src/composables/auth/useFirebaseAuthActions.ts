@@ -6,10 +6,8 @@ import { useBillingContext } from '@/composables/billing/useBillingContext'
 import { useErrorHandling } from '@/composables/useErrorHandling'
 import type { ErrorRecoveryStrategy } from '@/composables/useErrorHandling'
 import { t } from '@/i18n'
-import { isCloud } from '@/platform/distribution/types'
 import { useTelemetry } from '@/platform/telemetry'
 import { useToastStore } from '@/platform/updates/common/toastStore'
-import { useWorkflowStore } from '@/platform/workflow/management/stores/workflowStore'
 import { useDialogService } from '@/services/dialogService'
 import { useFirebaseAuthStore } from '@/stores/firebaseAuthStore'
 import type { BillingPortalTargetTier } from '@/stores/firebaseAuthStore'
@@ -20,15 +18,6 @@ const HUIZHI_STORAGE_KEYS = {
   TOKEN: 'huizhi_token',
   COMFY_ORG_TOKEN: 'comfy_org_token',
   USER_INFO: 'huizhi_user_info'
-}
-
-/**
- * 检查是否通过绘智服务登录
- */
-function isHuizhiLoggedIn(): boolean {
-  const huizhiToken = localStorage.getItem(HUIZHI_STORAGE_KEYS.TOKEN)
-  const comfyOrgToken = localStorage.getItem(HUIZHI_STORAGE_KEYS.COMFY_ORG_TOKEN)
-  return !!(huizhiToken && comfyOrgToken)
 }
 // ============= 绘智 AI 认证集成结束 =============
 

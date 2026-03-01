@@ -1,0 +1,91 @@
+import { r as __name } from "./rolldown-runtime-DLICfi3-.js";
+import "./vendor-primevue-kyY2H95P.js";
+import "./vendor-firebase-DnyyBhvM.js";
+import { q as nextTick } from "./vendor-vue-core-tg-oZu4l.js";
+import "./vendor-other-C6-gqLl2.js";
+import "./useFeatureFlags-B9hGtXPF.js";
+import "./vendor-reka-ui--l_O1Shn.js";
+import "./api-BIg8a8Ge.js";
+import "./vendor-markdown-DFo_IkzS.js";
+import "./colorUtil-CPODED-Q.js";
+import "./i18n-CrjEfjCc.js";
+import "./Button-DQNHabQW.js";
+import { ir as addWidget, jn as useExtensionService, nr as ComponentWidgetImpl } from "./dialogService-C9L3yyTu.js";
+import "./extensionStore-C4FANNnW.js";
+import "./userStore-H2R_W1gd.js";
+import "./useErrorHandling-CnTPvfCR.js";
+import "./useExternalLink-DGE106nN.js";
+import "./vendor-tiptap-BnYkbQDM.js";
+import "./markdownRendererUtil-COLKL0Bq.js";
+import "./Popover-DEsU7dja.js";
+import "./vendor-three-LBLOE6BD.js";
+import "./Load3DControls-fN1G2Wtj.js";
+import "./constants-htt0vt7m.js";
+import "./Load3dViewerContent-BeNi3Exy.js";
+import { t as Load3D_default } from "./Load3D-6K89O0t_.js";
+import "./AnimationControls-DJwe7Ybk.js";
+import { r as Load3dUtils, t as useLoad3dService } from "./load3dService-Dw9Ry2tE.js";
+import "./useLoad3dViewer-CAbZzg2O.js";
+import { n as useLoad3d } from "./useLoad3d-CtQy2XKr.js";
+import { n as createExportMenuItems, t as Load3DConfiguration } from "./Load3DConfiguration-Bh_5bXj1.js";
+var inputSpec = {
+	name: "image",
+	type: "Preview3D",
+	isPreview: true
+};
+useExtensionService().registerExtension({
+	name: "Comfy.SaveGLB",
+	async beforeRegisterNodeDef(_nodeType, nodeData) {
+		if ("SaveGLB" === nodeData.name) nodeData.input.required.image = ["PREVIEW_3D"];
+	},
+	getCustomWidgets() {
+		return { PREVIEW_3D(node) {
+			const widget = new ComponentWidgetImpl({
+				node,
+				name: inputSpec.name,
+				component: Load3D_default,
+				inputSpec,
+				options: {}
+			});
+			widget.type = "load3D";
+			addWidget(node, widget);
+			return { widget };
+		} };
+	},
+	getNodeMenuItems(node) {
+		if (node.constructor.comfyClass !== "SaveGLB") return [];
+		const load3d = useLoad3dService().getLoad3d(node);
+		if (!load3d) return [];
+		if (load3d.isSplatModel()) return [];
+		return createExportMenuItems(load3d);
+	},
+	async nodeCreated(node) {
+		if (node.constructor.comfyClass !== "SaveGLB") return;
+		const [oldWidth, oldHeight] = node.size;
+		node.setSize([Math.max(oldWidth, 400), Math.max(oldHeight, 550)]);
+		await nextTick();
+		const onExecuted = node.onExecuted;
+		node.onExecuted = function(output) {
+			onExecuted?.call(this, output);
+			const fileInfo = output["3d"]?.[0];
+			if (!fileInfo) return;
+			useLoad3d(node).waitForLoad3d((load3d) => {
+				const modelWidget = node.widgets?.find((w) => w.name === "image");
+				if (load3d && modelWidget) {
+					const filePath = (fileInfo.subfolder ?? "") + "/" + (fileInfo.filename ?? "");
+					modelWidget.value = filePath;
+					const config = new Load3DConfiguration(load3d, node.properties);
+					const loadFolder = fileInfo.type;
+					const onModelLoaded = () => {
+						load3d.removeEventListener("modelLoadingEnd", onModelLoaded);
+						Load3dUtils.generateThumbnailIfNeeded(load3d, filePath, loadFolder);
+					};
+					load3d.addEventListener("modelLoadingEnd", onModelLoaded);
+					config.configureForSaveMesh(loadFolder, filePath);
+				}
+			});
+		};
+	}
+});
+
+//# sourceMappingURL=saveMesh-BbNaWX8F.js.map

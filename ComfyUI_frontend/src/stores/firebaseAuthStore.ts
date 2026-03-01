@@ -389,6 +389,14 @@ export const useFirebaseAuthStore = defineStore('firebaseAuth', () => {
   }
 
   const fetchBalance = async (): Promise<GetCustomerBalanceResponse | null> => {
+    // ============= 绘智用户跳过余额获取 =============
+    // 绘智用户没有真正的 ComfyOrg 账户，调用余额 API 会报错 "Failed to find customer"
+    if (huizhiLoggedIn.value) {
+      console.log('[Huizhi] Skipping fetchBalance for Huizhi user - no ComfyOrg customer account')
+      return null
+    }
+    // ================================================
+    
     isFetchingBalance.value = true
     try {
       const authHeader = await getAuthHeader()
@@ -429,6 +437,14 @@ export const useFirebaseAuthStore = defineStore('firebaseAuth', () => {
   }
 
   const createCustomer = async (): Promise<CreateCustomerResponse> => {
+    // ============= 绘智用户跳过创建客户 =============
+    // 绘智用户没有真正的 ComfyOrg 账户
+    if (huizhiLoggedIn.value) {
+      console.log('[Huizhi] Skipping createCustomer for Huizhi user')
+      return { id: huizhiUserInfo.value?.uid || 'huizhi-user' } as CreateCustomerResponse
+    }
+    // ================================================
+    
     const authHeader = await getAuthHeader()
     if (!authHeader) {
       throw new FirebaseAuthStoreError(t('toastMessages.userNotAuthenticated'))
@@ -603,6 +619,14 @@ export const useFirebaseAuthStore = defineStore('firebaseAuth', () => {
   const addCredits = async (
     requestBodyContent: CreditPurchasePayload
   ): Promise<CreditPurchaseResponse> => {
+    // ============= 绘智用户跳过充值 =============
+    // 绘智用户没有真正的 ComfyOrg 账户，不支持充值
+    if (huizhiLoggedIn.value) {
+      console.log('[Huizhi] Skipping addCredits for Huizhi user - not supported')
+      throw new FirebaseAuthStoreError('绘智用户暂不支持此功能')
+    }
+    // ============================================
+    
     const authHeader = await getAuthHeader()
     if (!authHeader) {
       throw new FirebaseAuthStoreError(t('toastMessages.userNotAuthenticated'))
@@ -643,6 +667,14 @@ export const useFirebaseAuthStore = defineStore('firebaseAuth', () => {
   const accessBillingPortal = async (
     targetTier?: BillingPortalTargetTier
   ): Promise<AccessBillingPortalResponse> => {
+    // ============= 绘智用户跳过账单门户 =============
+    // 绘智用户没有真正的 ComfyOrg 账户，不支持账单管理
+    if (huizhiLoggedIn.value) {
+      console.log('[Huizhi] Skipping accessBillingPortal for Huizhi user - not supported')
+      throw new FirebaseAuthStoreError('绘智用户暂不支持此功能')
+    }
+    // ================================================
+    
     const authHeader = await getAuthHeader()
     if (!authHeader) {
       throw new FirebaseAuthStoreError(t('toastMessages.userNotAuthenticated'))
