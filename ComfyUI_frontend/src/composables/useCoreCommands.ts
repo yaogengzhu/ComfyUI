@@ -496,10 +496,11 @@ export function useCoreCommands(): ComfyCommand[] {
         trigger_source?: ExecutionTriggerSource
       }) => {
         useTelemetry()?.trackRunButton(metadata)
-        if (!isActiveSubscription.value) {
-          showSubscriptionDialog()
-          return
-        }
+        // [绘智AI] 本地部署模式跳过订阅检查，直接允许运行
+        // if (!isActiveSubscription.value) {
+        //   showSubscriptionDialog()
+        //   return
+        // }
 
         const batchCount = useQueueSettingsStore().batchCount
 
@@ -519,10 +520,11 @@ export function useCoreCommands(): ComfyCommand[] {
         trigger_source?: ExecutionTriggerSource
       }) => {
         useTelemetry()?.trackRunButton(metadata)
-        if (!isActiveSubscription.value) {
-          showSubscriptionDialog()
-          return
-        }
+        // [绘智AI] 本地部署模式跳过订阅检查，直接允许运行
+        // if (!isActiveSubscription.value) {
+        //   showSubscriptionDialog()
+        //   return
+        // }
 
         const batchCount = useQueueSettingsStore().batchCount
 
@@ -541,10 +543,11 @@ export function useCoreCommands(): ComfyCommand[] {
         trigger_source?: ExecutionTriggerSource
       }) => {
         useTelemetry()?.trackRunButton(metadata)
-        if (!isActiveSubscription.value) {
-          showSubscriptionDialog()
-          return
-        }
+        // [绘智AI] 本地部署模式跳过订阅检查，直接允许运行
+        // if (!isActiveSubscription.value) {
+        //   showSubscriptionDialog()
+        //   return
+        // }
 
         const batchCount = useQueueSettingsStore().batchCount
         const selectedNodes = getSelectedNodes()

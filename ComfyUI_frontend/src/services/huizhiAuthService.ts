@@ -419,240 +419,71 @@ async function refreshComfyOrgToken(): Promise<void> {
   }
 }
 
-// ============= 绘智退出登录 (完整流程，阻止 WebSocket 重连) =============
+// ============= 绘智退出登录 (简化版，直接跳转) =============
 export function handleHuizhiLogout(confirmLogout = true): void {
   if (confirmLogout && !confirm('确定要退出登录吗？')) {
     return
   }
 
-  console.log('[HuizhiAuth] ========== Starting logout process ==========')
+  console.log('[HuizhiAuth] ========== Starting logout ==========')
 
-  // ============ 第0步: 立即隐藏页面，防止显示 Reconnecting ============
-  try {
-    document.body.style.opacity = '0'
-    document.body.style.pointerEvents = 'none'
-    // 添加遮罩层
-    const overlay = document.createElement('div')
-    overlay.id = 'huizhi-logout-overlay'
-    overlay.style.cssText =
-      'position:fixed;top:0;left:0;right:0;bottom:0;background:#1a1a1a;z-index:999999;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;'
-    overlay.innerHTML = '<div>正在退出登录...</div>'
-    document.body.appendChild(overlay)
-  } catch (e) {
-    /* ignore */
-  }
-
-  // ============ 第1步: 立即设置全局退出标志 ============
-  // 这些标志会被 api.ts 中的 WebSocket 重连逻辑检查
+  // 设置退出标志，阻止 WS 重连
   ;(window as any).__HUIZHI_LOGOUT_IN_PROGRESS__ = true
-  sessionStorage.setItem('comfy_logout_in_progress', 'true')
 
-  // 在 window 上也标记，防止任何异步代码检查
-  try {
-    Object.defineProperty(window, '__LOGOUT_ACTIVE__', {
-      value: true,
-      writable: false,
-      configurable: false
-    })
-  } catch (e) {
-    /* ignore if already defined */
-  }
-
-  console.log('[HuizhiAuth] Step 1: Logout flags set')
-
-  // ============ 第2步: 停止设备检查轮询 ============
+  // 停止定时器
   stopDeviceCheckPolling()
-  console.log('[HuizhiAuth] Step 2: Device check polling stopped')
-
-  // ============ 第3步: 清除所有定时器 ============
   if (tokenRefreshTimer) {
     clearTimeout(tokenRefreshTimer)
     tokenRefreshTimer = null
   }
 
-  // 暴力清除所有 setTimeout 和 setInterval
-  const highestTimeoutId = setTimeout(() => {}, 0) as unknown as number
-  const highestIntervalId = setInterval(() => {}, 10000) as unknown as number
-  clearInterval(highestIntervalId)
-
-  console.log(
-    '[HuizhiAuth] Step 3: Clearing timers up to ID',
-    Math.max(highestTimeoutId, highestIntervalId)
-  )
-
-  for (
-    let i = 0;
-    i <= Math.max(highestTimeoutId, highestIntervalId) + 100;
-    i++
-  ) {
-    try {
-      clearTimeout(i)
-    } catch (e) {
-      /* ignore */
-    }
-    try {
-      clearInterval(i)
-    } catch (e) {
-      /* ignore */
-    }
-  }
-
-  console.log('[HuizhiAuth] Step 3: All timers cleared')
-
-  // ============ 第4步: 关闭 WebSocket 连接 ============
-  const closeWebSocket = (socket: WebSocket | null, name: string) => {
-    if (!socket) return
-    try {
-      // 先移除所有事件监听器
-      socket.onopen = null
+  // 关闭 WebSocket
+  try {
+    const socket = (window as any).app?.api?.socket
+    if (socket && (socket.readyState === 0 || socket.readyState === 1)) {
       socket.onclose = null
       socket.onerror = null
-      socket.onmessage = null
-
-      // 如果 socket 还在连接中，强制关闭
-      if (
-        socket.readyState === WebSocket.CONNECTING ||
-        socket.readyState === WebSocket.OPEN
-      ) {
-        socket.close(1000, 'User logout')
-      }
-      console.log('[HuizhiAuth] WebSocket closed:', name)
-    } catch (e) {
-      console.warn('[HuizhiAuth] Error closing WebSocket:', name, e)
+      socket.close(1000, 'User logout')
     }
-  }
+  } catch (e) { /* ignore */ }
 
-  // 关闭 ComfyUI API 的 WebSocket
-  if ((window as any).app?.api?.socket) {
-    closeWebSocket((window as any).app.api.socket, 'app.api.socket')
-    ;(window as any).app.api.socket = null
-  }
-
-  // 尝试查找并关闭其他可能的 WebSocket
-  if ((window as any).api?.socket) {
-    closeWebSocket((window as any).api.socket, 'api.socket')
-    ;(window as any).api.socket = null
-  }
-
-  console.log('[HuizhiAuth] Step 4: WebSocket connections closed')
-
-  // ============ 第5步: 覆盖 WebSocket 构造函数阻止重连 ============
-  ;(window as any).WebSocket = function (url: string) {
-    console.log('[HuizhiAuth] WebSocket connection BLOCKED:', url)
-    // 返回一个假的 WebSocket 对象
-    return {
-      url: url,
-      readyState: 3, // CLOSED
-      bufferedAmount: 0,
-      extensions: '',
-      protocol: '',
-      binaryType: 'blob',
-      onopen: null,
-      onclose: null,
-      onerror: null,
-      onmessage: null,
-      send: function () {
-        console.log('[HuizhiAuth] Fake WS send blocked')
-      },
-      close: function () {
-        console.log('[HuizhiAuth] Fake WS close called')
-      },
-      addEventListener: function () {},
-      removeEventListener: function () {},
-      dispatchEvent: function () {
-        return false
-      }
-    }
-  }
-  ;(window as any).WebSocket.CONNECTING = 0
-  ;(window as any).WebSocket.OPEN = 1
-  ;(window as any).WebSocket.CLOSING = 2
-  ;(window as any).WebSocket.CLOSED = 3
-
-  console.log('[HuizhiAuth] Step 5: WebSocket constructor replaced')
-
-  // ============ 第6步: 清除本地存储 ============
-  // 清除绘智相关
+  // 清除存储
   Object.values(HUIZHI_STORAGE_KEYS).forEach((key) => {
-    try {
-      localStorage.removeItem(key)
-    } catch (e) {
-      /* ignore */
-    }
+    try { localStorage.removeItem(key) } catch (e) { /* ignore */ }
   })
-
-  // 清除其他可能的存储
   const keysToRemove = [
-    'comfy_user',
-    'comfy_refresh_token',
-    'huizhi_user_info',
-    'comfy_token',
-    'clientId'
+    'comfy_user', 'comfy_refresh_token', 'huizhi_user_info',
+    'comfy_token', 'clientId'
   ]
   keysToRemove.forEach((key) => {
-    try {
-      localStorage.removeItem(key)
-    } catch (e) {
-      /* ignore */
-    }
+    try { localStorage.removeItem(key) } catch (e) { /* ignore */ }
   })
 
-  // 清除 Firebase 相关
+  // 清除 Firebase 相关 localStorage
   const allKeys: string[] = []
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i)
     if (key) allKeys.push(key)
   }
   allKeys.forEach((key) => {
-    if (
-      key &&
-      (key.includes('firebase') ||
-        key.includes('comfy') ||
-        key.includes('huizhi'))
-    ) {
-      try {
-        localStorage.removeItem(key)
-      } catch (e) {
-        /* ignore */
-      }
+    if (key && (key.includes('firebase') || key.includes('comfy') || key.includes('huizhi'))) {
+      try { localStorage.removeItem(key) } catch (e) { /* ignore */ }
     }
   })
 
-  // 清除 sessionStorage
-  try {
-    // 保留 logout 标志，其他都清除
-    sessionStorage.clear()
-    sessionStorage.setItem('comfy_logout_in_progress', 'true')
-  } catch (e) {
-    /* ignore */
-  }
+  // 清除 Cookie
+  document.cookie.split(';').forEach((cookie) => {
+    const name = cookie.split('=')[0].trim()
+    document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`
+  })
 
-  // 清除 IndexedDB (Firebase 存储)
-  try {
-    indexedDB.deleteDatabase('firebaseLocalStorageDb')
-  } catch (e) {
-    /* ignore */
-  }
+  // 清除 IndexedDB
+  try { indexedDB.deleteDatabase('firebaseLocalStorageDb') } catch (e) { /* ignore */ }
 
-  console.log('[HuizhiAuth] Step 6: Local storage cleared')
+  console.log('[HuizhiAuth] Storage cleared, redirecting...')
 
-  // ============ 第7步: 清除 Cookie ============
-  const clearCookies = () => {
-    const cookies = document.cookie.split(';')
-    for (const cookie of cookies) {
-      const name = cookie.split('=')[0].trim()
-      document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`
-      document.cookie = `${name}=; path=/; domain=${window.location.hostname}; expires=Thu, 01 Jan 1970 00:00:00 GMT`
-    }
-  }
-  clearCookies()
-
-  console.log('[HuizhiAuth] Step 7: Cookies cleared')
-
-  console.log('[HuizhiAuth] ========== Redirecting to login page ==========')
-
-  // ============ 第8步: 强制跳转（不要调 window.stop()，会取消导航） ============
-  window.location.replace('/login?logout=1')
+  // 直接跳转 — 用 window.location.href 整页刷新到登录页
+  window.location.href = '/login?logout=1'
 }
 
 // ============= 初始化绘智认证服务 =============

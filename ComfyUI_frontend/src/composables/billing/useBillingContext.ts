@@ -116,9 +116,8 @@ function useBillingContextInternal(): BillingContext {
     toValue(activeContext.value.currentPlanSlug)
   )
 
-  const isActiveSubscription = computed(() =>
-    toValue(activeContext.value.isActiveSubscription)
-  )
+  // [绘智AI] 本地部署模式下，订阅始终为 true，跳过所有订阅检查
+  const isActiveSubscription = computed(() => true)
 
   const isFreeTier = computed(() => subscription.value?.tier === 'FREE')
 
