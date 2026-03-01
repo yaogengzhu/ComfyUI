@@ -77,3 +77,10 @@ class Session:
     ip_address: str = ""
     user_agent: str = ""
     is_valid: bool = True
+    
+    # 单点登录 - 设备标识
+    device_id: str = ""          # 设备唯一标识 (浏览器指纹)
+    device_name: str = ""        # 设备名称 (用于展示)
+    device_type: str = ""        # 设备类型: desktop, mobile, tablet
+    os_name: str = ""            # 操作系统: Windows, macOS, Linux, iOS, Android
+    browser_name: str = ""       # 浏览器: Chrome, Firefox, Safari, Electron

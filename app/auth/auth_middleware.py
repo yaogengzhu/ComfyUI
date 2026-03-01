@@ -29,6 +29,7 @@ PUBLIC_PATHS = [
     "/api/auth/login",
     "/api/auth/register", 
     "/api/auth/refresh",
+    "/api/auth/check-device",  # 设备检测接口
     "/login",           # 登录页面
     "/register",        # 注册页面 (如果有)
     "/favicon.ico",
@@ -128,6 +129,9 @@ def create_auth_middleware(auth_manager: 'AuthManager', enabled: bool = True):
         
         # 验证 Token (优先使用绘智认证服务)
         if token:
+            # 获取设备 ID (用于单点登录验证)
+            device_id = request.headers.get("X-Device-ID", "") or request.query.get("device_id", "")
+            
             # 方式 1: 尝试绘智认证服务的 Token
             huizhi_user = verify_huizhi_token(token)
             if huizhi_user:
@@ -136,12 +140,20 @@ def create_auth_middleware(auth_manager: 'AuthManager', enabled: bool = True):
                 logging.debug(f"[HuizhiAuth] User authenticated: {huizhi_user.username}")
                 return await handler(request)
             
-            # 方式 2: 回退到 ComfyUI 内置认证
-            valid, user = auth_manager.verify_token(token)
+            # 方式 2: 回退到 ComfyUI 内置认证 (支持单点登录设备验证)
+            valid, user, error = auth_manager.verify_token(token, device_id)
             if valid and user:
                 request['user'] = user
                 request['user_id'] = user.id
                 return await handler(request)
+            
+            # 如果是设备不匹配，返回特殊错误码
+            if error == "device_mismatch":
+                return web.json_response({
+                    "success": False,
+                    "message": "您的账号已在其他设备登录，当前设备已被强制下线",
+                    "code": "DEVICE_MISMATCH"
+                }, status=401)
         
         # 未认证
         # 对于需要重定向的页面路径，重定向到登录页

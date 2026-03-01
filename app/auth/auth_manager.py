@@ -31,6 +31,9 @@ class AuthManager:
         self.token_expire_hours = 24  # Token 过期时间
         self.refresh_token_expire_days = 7  # Refresh Token 过期时间
         
+        # 单点登录配置
+        self.single_device_login = True  # 是否启用单设备登录
+        
         # 存储路径
         self.auth_dir = os.path.join(folder_paths.get_user_directory(), "auth")
         self.users_file = os.path.join(self.auth_dir, "users.json")
@@ -77,7 +80,13 @@ class AuthManager:
                             created_at=datetime.fromisoformat(sdata["created_at"]) if sdata.get("created_at") else datetime.now(),
                             ip_address=sdata.get("ip_address", ""),
                             user_agent=sdata.get("user_agent", ""),
-                            is_valid=sdata.get("is_valid", True)
+                            is_valid=sdata.get("is_valid", True),
+                            # 单点登录字段
+                            device_id=sdata.get("device_id", ""),
+                            device_name=sdata.get("device_name", ""),
+                            device_type=sdata.get("device_type", ""),
+                            os_name=sdata.get("os_name", ""),
+                            browser_name=sdata.get("browser_name", "")
                         )
                         self.sessions[sid] = session
             except Exception as e:
@@ -107,7 +116,13 @@ class AuthManager:
                     "created_at": session.created_at.isoformat(),
                     "ip_address": session.ip_address,
                     "user_agent": session.user_agent,
-                    "is_valid": session.is_valid
+                    "is_valid": session.is_valid,
+                    # 单点登录字段
+                    "device_id": session.device_id,
+                    "device_name": session.device_name,
+                    "device_type": session.device_type,
+                    "os_name": session.os_name,
+                    "browser_name": session.browser_name
                 }
             with open(self.sessions_file, 'w', encoding='utf-8') as f:
                 json.dump(data, f, indent=2)
@@ -206,9 +221,11 @@ class AuthManager:
         logging.info(f"New user registered: {username}")
         return True, "注册成功", user
     
-    def login(self, username: str, password: str, ip_address: str = "", user_agent: str = "") -> Tuple[bool, str, Optional[dict]]:
+    def login(self, username: str, password: str, ip_address: str = "", user_agent: str = "",
+              device_id: str = "", device_name: str = "", device_type: str = "", 
+              os_name: str = "", browser_name: str = "") -> Tuple[bool, str, Optional[dict]]:
         """
-        用户登录
+        用户登录 (支持单点登录)
         返回: (成功, 消息, Token信息)
         """
         # 查找用户 (支持用户名或邮箱登录)
@@ -227,18 +244,41 @@ class AuthManager:
         if not self._verify_password(password, user.password_hash):
             return False, "密码错误", None
         
+        # ============ 单点登录处理 ============
+        kicked_device = None
+        if self.single_device_login:
+            # 使该用户的所有其他会话失效
+            for session in self.sessions.values():
+                if session.user_id == user.id and session.is_valid:
+                    # 记录被踢掉的设备信息
+                    kicked_device = {
+                        "device_name": session.device_name or "未知设备",
+                        "device_type": session.device_type or "unknown",
+                        "os_name": session.os_name or "",
+                        "browser_name": session.browser_name or "",
+                        "ip_address": session.ip_address or "",
+                        "login_time": session.created_at.isoformat() if session.created_at else ""
+                    }
+                    session.is_valid = False
+                    logging.info(f"[SSO] Kicked device for user {username}: {session.device_name} ({session.device_id})")
+        
         # 生成 Token
         token = self._generate_token(user)
         refresh_token = self._generate_refresh_token()
         
-        # 创建会话
+        # 创建会话 (包含设备信息)
         session = Session(
             user_id=user.id,
             token=token,
             refresh_token=refresh_token,
             expires_at=datetime.now() + timedelta(hours=self.token_expire_hours),
             ip_address=ip_address,
-            user_agent=user_agent
+            user_agent=user_agent,
+            device_id=device_id,
+            device_name=device_name,
+            device_type=device_type,
+            os_name=os_name,
+            browser_name=browser_name
         )
         
         self.sessions[session.id] = session
@@ -248,22 +288,31 @@ class AuthManager:
         user.last_login = datetime.now()
         self._save_users()
         
-        logging.info(f"User logged in: {username}")
+        logging.info(f"User logged in: {username} from {device_name} ({device_type}/{os_name})")
         
-        return True, "登录成功", {
+        result_data = {
             "token": token,
             "refresh_token": refresh_token,
             "expires_in": self.token_expire_hours * 3600,
-            "user": user.to_dict()
+            "user": user.to_dict(),
+            "device_id": device_id,
+            "session_id": session.id
         }
+        
+        # 如果踢掉了其他设备，返回提示信息
+        if kicked_device:
+            result_data["kicked_device"] = kicked_device
+        
+        return True, "登录成功", result_data
     
-    def verify_token(self, token: str) -> Tuple[bool, Optional[User]]:
+    def verify_token(self, token: str, device_id: str = None) -> Tuple[bool, Optional[User], Optional[str]]:
         """
         验证 Token
-        返回: (是否有效, 用户对象)
+        返回: (是否有效, 用户对象, 错误原因)
+        错误原因: None=成功, "expired"=过期, "invalid"=无效, "device_mismatch"=设备不匹配
         """
         if not token:
-            return False, None
+            return False, None, "invalid"
         
         if JWT_AVAILABLE:
             try:
@@ -272,12 +321,18 @@ class AuthManager:
                 if user_id and user_id in self.users:
                     user = self.users[user_id]
                     if user.is_active:
-                        return True, user
+                        # 检查设备 ID (如果启用单点登录)
+                        if self.single_device_login and device_id:
+                            session = self._get_session_by_token(token)
+                            if session and session.device_id and session.device_id != device_id:
+                                return False, None, "device_mismatch"
+                        return True, user, None
             except jwt.ExpiredSignatureError:
                 logging.debug("Token expired")
+                return False, None, "expired"
             except jwt.InvalidTokenError as e:
                 logging.debug(f"Invalid token: {e}")
-            return False, None
+            return False, None, "invalid"
         else:
             # 简单 Token 验证
             for session in self.sessions.values():
@@ -286,8 +341,44 @@ class AuthManager:
                         if session.user_id in self.users:
                             user = self.users[session.user_id]
                             if user.is_active:
-                                return True, user
-            return False, None
+                                # 检查设备 ID (如果启用单点登录)
+                                if self.single_device_login and device_id:
+                                    if session.device_id and session.device_id != device_id:
+                                        return False, None, "device_mismatch"
+                                return True, user, None
+                    else:
+                        return False, None, "expired"
+            return False, None, "invalid"
+    
+    def _get_session_by_token(self, token: str) -> Optional[Session]:
+        """根据 Token 获取会话"""
+        for session in self.sessions.values():
+            if session.token == token and session.is_valid:
+                return session
+        return None
+    
+    def check_device_valid(self, token: str, device_id: str) -> Tuple[bool, str]:
+        """
+        检查设备是否有效 (用于前端轮询检测被踢)
+        返回: (是否有效, 原因)
+        """
+        if not token or not device_id:
+            return False, "missing_params"
+        
+        session = self._get_session_by_token(token)
+        if not session:
+            return False, "session_not_found"
+        
+        if not session.is_valid:
+            return False, "session_invalidated"
+        
+        if session.device_id and session.device_id != device_id:
+            return False, "device_mismatch"
+        
+        if session.expires_at < datetime.now():
+            return False, "session_expired"
+        
+        return True, "valid"
     
     def refresh_token(self, refresh_token: str) -> Tuple[bool, str, Optional[dict]]:
         """
@@ -423,7 +514,17 @@ class AuthManager:
                 ip_address = request.remote or ""
                 user_agent = request.headers.get("User-Agent", "")
                 
-                success, message, data = self.login(username, password, ip_address, user_agent)
+                # 获取设备信息 (单点登录)
+                device_id = body.get("device_id", "")
+                device_name = body.get("device_name", "")
+                device_type = body.get("device_type", "")
+                os_name = body.get("os_name", "")
+                browser_name = body.get("browser_name", "")
+                
+                success, message, data = self.login(
+                    username, password, ip_address, user_agent,
+                    device_id, device_name, device_type, os_name, browser_name
+                )
                 
                 if success:
                     return web.json_response({
@@ -481,7 +582,8 @@ class AuthManager:
         async def me_handler(request):
             """获取当前用户信息"""
             token = request.headers.get("Authorization", "").replace("Bearer ", "")
-            valid, user = self.verify_token(token)
+            device_id = request.headers.get("X-Device-ID", "")
+            valid, user, error = self.verify_token(token, device_id)
             
             if valid and user:
                 return web.json_response({
@@ -489,21 +591,29 @@ class AuthManager:
                     "user": user.to_dict()
                 })
             else:
+                # 返回具体错误原因
+                error_messages = {
+                    "expired": "Token 已过期，请重新登录",
+                    "invalid": "无效的 Token",
+                    "device_mismatch": "您的账号已在其他设备登录，当前设备已被强制下线"
+                }
                 return web.json_response({
                     "success": False,
-                    "message": "未登录或 Token 已过期"
+                    "message": error_messages.get(error, "未登录或 Token 已过期"),
+                    "error_code": error
                 }, status=401)
         
         @routes.put("/api/auth/me")
         async def update_me_handler(request):
             """更新当前用户信息"""
             token = request.headers.get("Authorization", "").replace("Bearer ", "")
-            valid, user = self.verify_token(token)
+            valid, user, error = self.verify_token(token)
             
             if not valid or not user:
                 return web.json_response({
                     "success": False,
-                    "message": "未登录或 Token 已过期"
+                    "message": "未登录或 Token 已过期",
+                    "error_code": error
                 }, status=401)
             
             try:
@@ -535,7 +645,7 @@ class AuthManager:
         async def list_users_handler(request):
             """获取用户列表 (管理员)"""
             token = request.headers.get("Authorization", "").replace("Bearer ", "")
-            valid, user = self.verify_token(token)
+            valid, user, _ = self.verify_token(token)
             
             if not valid or not user or user.role != "admin":
                 return web.json_response({
@@ -555,7 +665,7 @@ class AuthManager:
         async def admin_update_user_handler(request):
             """更新用户 (管理员)"""
             token = request.headers.get("Authorization", "").replace("Bearer ", "")
-            valid, user = self.verify_token(token)
+            valid, user, _ = self.verify_token(token)
             
             if not valid or not user or user.role != "admin":
                 return web.json_response({
@@ -605,7 +715,7 @@ class AuthManager:
         async def admin_delete_user_handler(request):
             """删除用户 (管理员)"""
             token = request.headers.get("Authorization", "").replace("Bearer ", "")
-            valid, user = self.verify_token(token)
+            valid, user, _ = self.verify_token(token)
             
             if not valid or not user or user.role != "admin":
                 return web.json_response({
@@ -634,3 +744,63 @@ class AuthManager:
                     "success": False,
                     "message": message
                 }, status=400)
+        
+        # === 单点登录接口 ===
+        
+        @routes.get("/api/auth/check-device")
+        async def check_device_handler(request):
+            """检查当前设备是否仍然有效 (用于前端轮询检测被踢)"""
+            token = request.headers.get("Authorization", "").replace("Bearer ", "")
+            device_id = request.headers.get("X-Device-ID", "") or request.query.get("device_id", "")
+            
+            if not token or not device_id:
+                return web.json_response({
+                    "valid": False,
+                    "reason": "missing_params"
+                }, status=400)
+            
+            valid, reason = self.check_device_valid(token, device_id)
+            
+            if valid:
+                return web.json_response({
+                    "valid": True,
+                    "reason": reason
+                })
+            else:
+                return web.json_response({
+                    "valid": False,
+                    "reason": reason,
+                    "message": "您的账号已在其他设备登录" if reason == "device_mismatch" else "会话已失效"
+                }, status=401)
+        
+        @routes.get("/api/auth/active-sessions")
+        async def active_sessions_handler(request):
+            """获取用户当前有效的会话列表"""
+            token = request.headers.get("Authorization", "").replace("Bearer ", "")
+            valid, user, _ = self.verify_token(token)
+            
+            if not valid or not user:
+                return web.json_response({
+                    "success": False,
+                    "message": "未登录"
+                }, status=401)
+            
+            sessions = []
+            for session in self.sessions.values():
+                if session.user_id == user.id and session.is_valid:
+                    sessions.append({
+                        "session_id": session.id,
+                        "device_id": session.device_id,
+                        "device_name": session.device_name,
+                        "device_type": session.device_type,
+                        "os_name": session.os_name,
+                        "browser_name": session.browser_name,
+                        "ip_address": session.ip_address,
+                        "created_at": session.created_at.isoformat(),
+                        "expires_at": session.expires_at.isoformat()
+                    })
+            
+            return web.json_response({
+                "success": True,
+                "sessions": sessions
+            })

@@ -13,8 +13,8 @@
         }
         
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-            background: #0f172a;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Hiragino Sans GB', sans-serif;
+            background: #f5f5f5;
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -22,39 +22,32 @@
         }
         
         .login-container {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(20px);
-            border-radius: 24px;
-            padding: 40px;
+            background: #fff;
+            border-radius: 8px;
+            padding: 48px 40px;
             width: 100%;
-            max-width: 420px;
-            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            max-width: 380px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
         }
         
         .logo {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 36px;
         }
 
         .logo-img {
-            width: 72px;
-            height: 72px;
-            border-radius: 16px;
-            margin-bottom: 12px;
+            width: 56px;
+            height: 56px;
+            border-radius: 12px;
+            margin-bottom: 16px;
             object-fit: cover;
         }
         
         .logo h1 {
-            color: #e2e8f0;
-            font-size: 28px;
-            font-weight: 700;
-        }
-        
-        .logo p {
-            color: rgba(255, 255, 255, 0.5);
-            margin-top: 8px;
-            font-size: 14px;
+            color: #333;
+            font-size: 22px;
+            font-weight: 600;
+            letter-spacing: 1px;
         }
         
         .form-group {
@@ -63,7 +56,7 @@
         
         .form-group label {
             display: block;
-            color: rgba(255, 255, 255, 0.7);
+            color: #666;
             margin-bottom: 8px;
             font-size: 14px;
             font-weight: 500;
@@ -71,100 +64,104 @@
         
         .form-group input {
             width: 100%;
-            padding: 14px 16px;
-            background: rgba(255, 255, 255, 0.06);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-            color: #fff;
-            font-size: 15px;
-            transition: all 0.3s;
+            padding: 12px 14px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            color: #333;
+            font-size: 14px;
+            transition: border-color 0.2s;
         }
         
         .form-group input:focus {
             outline: none;
-            border-color: #3b82f6;
-            background: rgba(59, 130, 246, 0.08);
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            border-color: #4080ff;
         }
         
         .form-group input::placeholder {
-            color: rgba(255, 255, 255, 0.3);
+            color: #bbb;
         }
         
         .submit-btn {
             width: 100%;
-            padding: 14px;
-            background: #3b82f6;
+            padding: 12px;
+            background: #4080ff;
             border: none;
-            border-radius: 12px;
+            border-radius: 6px;
             color: #fff;
-            font-size: 16px;
-            font-weight: 600;
+            font-size: 15px;
+            font-weight: 500;
             cursor: pointer;
-            transition: all 0.3s;
-            letter-spacing: 2px;
+            transition: background 0.2s;
+            margin-top: 8px;
         }
         
         .submit-btn:hover {
-            transform: translateY(-2px);
-            background: #2563eb;
-            box-shadow: 0 10px 25px rgba(59, 130, 246, 0.25);
+            background: #3070ee;
         }
         
         .submit-btn:disabled {
             opacity: 0.6;
             cursor: not-allowed;
-            transform: none;
         }
         
         .message {
-            padding: 12px;
-            border-radius: 10px;
+            padding: 10px 12px;
+            border-radius: 4px;
             margin-bottom: 20px;
             text-align: center;
             display: none;
-            font-size: 14px;
+            font-size: 13px;
         }
         
         .message.error {
-            background: rgba(255, 59, 48, 0.15);
-            color: #ff6b6b;
+            background: #fff2f0;
+            color: #ff4d4f;
+            border: 1px solid #ffccc7;
             display: block;
         }
         
         .message.success {
-            background: rgba(52, 199, 89, 0.15);
-            color: #52c959;
+            background: #f6ffed;
+            color: #52c41a;
+            border: 1px solid #b7eb8f;
             display: block;
         }
         
-        .message.info {
-            background: rgba(59, 130, 246, 0.15);
-            color: #60a5fa;
+        .message.warning {
+            background: #fffbe6;
+            color: #d48806;
+            border: 1px solid #ffe58f;
             display: block;
         }
         
         .footer {
             text-align: center;
-            margin-top: 24px;
-            color: rgba(255, 255, 255, 0.3);
+            margin-top: 32px;
+            color: #bbb;
             font-size: 12px;
         }
 
         .loading-spinner {
             display: inline-block;
-            width: 16px;
-            height: 16px;
+            width: 14px;
+            height: 14px;
             border: 2px solid rgba(255, 255, 255, 0.3);
             border-radius: 50%;
             border-top-color: #fff;
-            animation: spin 0.8s linear infinite;
-            margin-right: 8px;
+            animation: spin 0.6s linear infinite;
+            margin-right: 6px;
             vertical-align: middle;
         }
 
         @keyframes spin {
             to { transform: rotate(360deg); }
+        }
+        
+        .kicked-notice {
+            font-size: 12px;
+            color: #666;
+            margin-top: 8px;
         }
     </style>
 </head>
@@ -173,12 +170,10 @@
         <div class="logo">
             <img src="/web_custom/assets/favicon.png" alt="绘智 AI" class="logo-img" onerror="this.style.display='none'">
             <h1>绘智 AI</h1>
-            <p>强大的 AI 图像生成平台</p>
         </div>
         
         <div id="message" class="message"></div>
         
-        <!-- 登录表单 -->
         <form onsubmit="handleLogin(event)">
             <div class="form-group">
                 <label>用户名 / 邮箱</label>
@@ -188,30 +183,102 @@
                 <label>密码</label>
                 <input type="password" id="login-password" placeholder="请输入密码" required>
             </div>
-            <button type="submit" class="submit-btn" id="login-btn">登 录</button>
+            <button type="submit" class="submit-btn" id="login-btn">登录</button>
         </form>
         
         <div class="footer">
-            <p>Powered by 绘智 AI</p>
+            <p>© 绘智 AI</p>
         </div>
     </div>
 
     <script>
         // ========== 配置 ==========
-        // 绘智认证服务地址 (独立的 Node.js 服务)
         const AUTH_SERVICE_URL = 'http://localhost:3001';
-        // ComfyUI 后端地址
         const COMFYUI_URL = window.location.origin;
 
         // ========== Token 存储键名 ==========
         const STORAGE_KEYS = {
-            HUIZHI_TOKEN: 'huizhi_token',           // 绘智系统 JWT
-            COMFY_ORG_TOKEN: 'comfy_org_token',     // ComfyOrg Firebase Token (核心!)
+            HUIZHI_TOKEN: 'huizhi_token',
+            COMFY_ORG_TOKEN: 'comfy_org_token',
             COMFY_ORG_EXPIRY: 'comfy_org_token_expiry',
             USER_INFO: 'huizhi_user',
-            HUIZHI_USER_INFO: 'huizhi_user_info',   // 用于 ComfyUI 前端读取
-            COMFY_TOKEN: 'comfy_token',             // 兼容旧的 key
+            HUIZHI_USER_INFO: 'huizhi_user_info',
+            COMFY_TOKEN: 'comfy_token',
+            // 设备信息
+            DEVICE_ID: 'huizhi_device_id',
+            SESSION_ID: 'huizhi_session_id',
         };
+        
+        // ========== 设备指纹生成 ==========
+        function generateDeviceId() {
+            // 检查是否已有设备 ID
+            let deviceId = localStorage.getItem(STORAGE_KEYS.DEVICE_ID);
+            if (deviceId) {
+                return deviceId;
+            }
+            
+            // 收集设备信息生成指纹
+            const components = [
+                navigator.userAgent,
+                navigator.language,
+                screen.width + 'x' + screen.height,
+                screen.colorDepth,
+                new Date().getTimezoneOffset(),
+                navigator.hardwareConcurrency || 'unknown',
+                navigator.platform
+            ];
+            
+            // 生成哈希
+            const str = components.join('|');
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                const char = str.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash;
+            }
+            
+            // 添加随机数确保唯一性
+            deviceId = 'device_' + Math.abs(hash).toString(36) + '_' + Date.now().toString(36);
+            localStorage.setItem(STORAGE_KEYS.DEVICE_ID, deviceId);
+            
+            return deviceId;
+        }
+        
+        function getDeviceInfo() {
+            const ua = navigator.userAgent;
+            let deviceType = 'desktop';
+            let osName = 'Unknown';
+            let browserName = 'Unknown';
+            let deviceName = '';
+            
+            // 检测操作系统
+            if (ua.includes('Windows')) osName = 'Windows';
+            else if (ua.includes('Mac OS')) osName = 'macOS';
+            else if (ua.includes('Linux')) osName = 'Linux';
+            else if (ua.includes('Android')) { osName = 'Android'; deviceType = 'mobile'; }
+            else if (ua.includes('iPhone') || ua.includes('iPad')) { 
+                osName = 'iOS'; 
+                deviceType = ua.includes('iPad') ? 'tablet' : 'mobile';
+            }
+            
+            // 检测浏览器
+            if (ua.includes('Electron')) browserName = 'Electron';
+            else if (ua.includes('Chrome')) browserName = 'Chrome';
+            else if (ua.includes('Firefox')) browserName = 'Firefox';
+            else if (ua.includes('Safari')) browserName = 'Safari';
+            else if (ua.includes('Edge')) browserName = 'Edge';
+            
+            // 生成设备名称
+            deviceName = `${browserName} on ${osName}`;
+            
+            return {
+                device_id: generateDeviceId(),
+                device_name: deviceName,
+                device_type: deviceType,
+                os_name: osName,
+                browser_name: browserName
+            };
+        }
         
         function showMessage(text, type) {
             const msg = document.getElementById('message');
@@ -235,20 +302,14 @@
 
         // ========== 存储 Token ==========
         function saveTokens(data) {
-            // 绘智系统 Token
             localStorage.setItem(STORAGE_KEYS.HUIZHI_TOKEN, data.huizhiToken);
-            
-            // ComfyOrg Token (最重要! 用于 API 节点)
             localStorage.setItem(STORAGE_KEYS.COMFY_ORG_TOKEN, data.comfyOrgToken);
             
-            // Token 过期时间
             const expiresAt = Date.now() + (data.comfyOrgTokenExpiresIn || 3600) * 1000;
             localStorage.setItem(STORAGE_KEYS.COMFY_ORG_EXPIRY, expiresAt.toString());
             
-            // 用户信息 (旧格式)
             localStorage.setItem(STORAGE_KEYS.USER_INFO, JSON.stringify(data.user));
             
-            // 用户信息 (ComfyUI 前端需要的格式)
             const huizhiUserInfo = {
                 email: data.user.email || data.user.username + '@huizhi.ai',
                 username: data.user.username,
@@ -256,14 +317,18 @@
             };
             localStorage.setItem(STORAGE_KEYS.HUIZHI_USER_INFO, JSON.stringify(huizhiUserInfo));
             
-            // 兼容: ComfyUI 原有认证系统使用的 key
             localStorage.setItem(STORAGE_KEYS.COMFY_TOKEN, data.huizhiToken);
             localStorage.setItem('comfy_user', JSON.stringify(data.user));
             
-            // 设置 Cookie (供 ComfyUI 后端中间件验证)
-            document.cookie = `comfy_token=${data.huizhiToken}; path=/; max-age=${60*60*24*7}; SameSite=Strict`;
+            // 保存设备和会话信息
+            if (data.device_id) {
+                localStorage.setItem(STORAGE_KEYS.DEVICE_ID, data.device_id);
+            }
+            if (data.session_id) {
+                localStorage.setItem(STORAGE_KEYS.SESSION_ID, data.session_id);
+            }
             
-            console.log('[Login] Tokens saved successfully');
+            document.cookie = `comfy_token=${data.huizhiToken}; path=/; max-age=${60*60*24*7}; SameSite=Strict`;
         }
 
         function clearTokens() {
@@ -282,40 +347,58 @@
             const username = document.getElementById('login-username').value.trim();
             const password = document.getElementById('login-password').value;
             
-            console.log('[Login] Attempting login for:', username);
+            // 获取设备信息
+            const deviceInfo = getDeviceInfo();
             
             try {
                 const response = await fetch(`${AUTH_SERVICE_URL}/api/auth/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
+                    body: JSON.stringify({ 
+                        username, 
+                        password,
+                        ...deviceInfo
+                    })
                 });
                 
                 const result = await response.json();
                 
                 if (response.ok && result.data) {
                     saveTokens(result.data);
-                    showMessage('登录成功，正在跳转...', 'success');
+                    
+                    // 检查是否踢掉了其他设备
+                    if (result.data.kicked_device) {
+                        const kicked = result.data.kicked_device;
+                        showMessage(`登录成功！已将 ${kicked.device_name} 上的登录下线`, 'warning');
+                    } else {
+                        showMessage('登录成功', 'success');
+                    }
                     
                     setTimeout(() => {
                         window.location.href = '/';
                     }, 800);
                 } else {
-                    console.error('[Login Error]', result.error || result.message);
                     showMessage(result.error || result.message || '登录失败', 'error');
                 }
             } catch (err) {
-                console.error('[Login] Network error:', err);
-                showMessage('无法连接认证服务，请检查服务是否启动', 'error');
+                showMessage('无法连接服务器', 'error');
             } finally {
-                setButtonLoading(btn, false, '登 录');
+                setButtonLoading(btn, false, '登录');
             }
         }
         
         // ========== 页面初始化 ==========
         window.onload = function() {
-            // 检查 URL 参数，如果有 logout=1 则清除登录状态
             const urlParams = new URLSearchParams(window.location.search);
+            
+            // 检查是否被踢下线
+            if (urlParams.get('kicked') === '1') {
+                clearTokens();
+                showMessage('您的账号已在其他设备登录，当前设备已下线', 'warning');
+                history.replaceState({}, document.title, '/login');
+                return;
+            }
+            
             if (urlParams.get('logout') === '1') {
                 clearTokens();
                 showMessage('已退出登录', 'success');
@@ -323,17 +406,23 @@
                 return;
             }
             
-            // 检查是否已登录
             const huizhiToken = localStorage.getItem(STORAGE_KEYS.HUIZHI_TOKEN);
             const comfyOrgToken = localStorage.getItem(STORAGE_KEYS.COMFY_ORG_TOKEN);
             
             if (huizhiToken && comfyOrgToken) {
-                // 验证 Token 是否有效
+                const deviceId = localStorage.getItem(STORAGE_KEYS.DEVICE_ID);
+                
                 fetch(`${AUTH_SERVICE_URL}/api/auth/me`, {
-                    headers: { 'Authorization': 'Bearer ' + huizhiToken }
-                }).then(res => {
-                    if (res.ok) {
+                    headers: { 
+                        'Authorization': 'Bearer ' + huizhiToken,
+                        'X-Device-ID': deviceId || ''
+                    }
+                }).then(res => res.json()).then(data => {
+                    if (data.success) {
                         window.location.href = '/';
+                    } else if (data.error_code === 'device_mismatch') {
+                        clearTokens();
+                        showMessage('您的账号已在其他设备登录', 'warning');
                     } else {
                         clearTokens();
                     }
