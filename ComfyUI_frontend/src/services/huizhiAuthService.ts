@@ -8,7 +8,6 @@
  */
 
 import { ref } from 'vue'
-import { getAuth, signInWithCustomToken } from 'firebase/auth'
 
 // ============= 配置 =============
 const AUTH_SERVICE_URL = 'http://localhost:3001'
@@ -392,37 +391,6 @@ async function refreshComfyOrgToken(): Promise<void> {
 
     if (response.ok) {
       const result = await response.json()
-
-      // 优先使用 firebaseCustomToken 做真正的 Firebase 登录
-      if (result.data?.firebaseCustomToken) {
-        try {
-          const auth = getAuth()
-          const userCredential = await signInWithCustomToken(
-            auth,
-            result.data.firebaseCustomToken
-          )
-          const idToken = await userCredential.user.getIdToken()
-          localStorage.setItem(HUIZHI_STORAGE_KEYS.COMFY_ORG_TOKEN, idToken)
-          const newExpiry = Date.now() + 3600 * 1000
-          localStorage.setItem(
-            HUIZHI_STORAGE_KEYS.COMFY_ORG_EXPIRY,
-            newExpiry.toString()
-          )
-          console.log(
-            '[HuizhiAuth] Firebase re-auth success, uid:',
-            userCredential.user.uid
-          )
-          setupTokenRefresh()
-          return
-        } catch (firebaseErr) {
-          console.error(
-            '[HuizhiAuth] Firebase re-auth failed, falling back:',
-            firebaseErr
-          )
-        }
-      }
-
-      // Fallback: 直接用后端给的 comfyOrgToken
       if (result.data?.comfyOrgToken) {
         localStorage.setItem(
           HUIZHI_STORAGE_KEYS.COMFY_ORG_TOKEN,
@@ -433,7 +401,27 @@ async function refreshComfyOrgToken(): Promise<void> {
           HUIZHI_STORAGE_KEYS.COMFY_ORG_EXPIRY,
           newExpiry.toString()
         )
-        console.log('[HuizhiAuth] ComfyOrg token refreshed (fallback mode)')
+        console.log('[HuizhiAuth] ComfyOrg token refreshed successfully')
+
+        // 用 comfyCredentials 刷新 Firebase 登录状态
+        if (result.data.comfyCredentials) {
+          try {
+            const { getAuth, signInWithEmailAndPassword } = await import('firebase/auth')
+            const auth = getAuth()
+            if (!auth.currentUser) {
+              console.log('[HuizhiAuth] Firebase currentUser is null, re-authenticating...')
+              await signInWithEmailAndPassword(
+                auth,
+                result.data.comfyCredentials.email,
+                result.data.comfyCredentials.password
+              )
+              console.log('[HuizhiAuth] Firebase re-auth SUCCESS')
+            }
+          } catch (firebaseErr) {
+            console.warn('[HuizhiAuth] Firebase re-auth failed (non-critical):', firebaseErr)
+          }
+        }
+
         setupTokenRefresh()
       }
     } else if (response.status === 401) {
