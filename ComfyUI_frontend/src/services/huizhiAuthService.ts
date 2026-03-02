@@ -8,6 +8,7 @@
  */
 
 import { ref } from 'vue'
+import { getAuth, signInWithCustomToken } from 'firebase/auth'
 
 // ============= 配置 =============
 const AUTH_SERVICE_URL = 'http://localhost:3001'
@@ -391,7 +392,38 @@ async function refreshComfyOrgToken(): Promise<void> {
 
     if (response.ok) {
       const result = await response.json()
-      if (result.data && result.data.comfyOrgToken) {
+
+      // 优先使用 firebaseCustomToken 做真正的 Firebase 登录
+      if (result.data?.firebaseCustomToken) {
+        try {
+          const auth = getAuth()
+          const userCredential = await signInWithCustomToken(
+            auth,
+            result.data.firebaseCustomToken
+          )
+          const idToken = await userCredential.user.getIdToken()
+          localStorage.setItem(HUIZHI_STORAGE_KEYS.COMFY_ORG_TOKEN, idToken)
+          const newExpiry = Date.now() + 3600 * 1000
+          localStorage.setItem(
+            HUIZHI_STORAGE_KEYS.COMFY_ORG_EXPIRY,
+            newExpiry.toString()
+          )
+          console.log(
+            '[HuizhiAuth] Firebase re-auth success, uid:',
+            userCredential.user.uid
+          )
+          setupTokenRefresh()
+          return
+        } catch (firebaseErr) {
+          console.error(
+            '[HuizhiAuth] Firebase re-auth failed, falling back:',
+            firebaseErr
+          )
+        }
+      }
+
+      // Fallback: 直接用后端给的 comfyOrgToken
+      if (result.data?.comfyOrgToken) {
         localStorage.setItem(
           HUIZHI_STORAGE_KEYS.COMFY_ORG_TOKEN,
           result.data.comfyOrgToken
@@ -401,26 +433,22 @@ async function refreshComfyOrgToken(): Promise<void> {
           HUIZHI_STORAGE_KEYS.COMFY_ORG_EXPIRY,
           newExpiry.toString()
         )
-        console.log('[HuizhiAuth] ComfyOrg token refreshed successfully')
-
-        // 重新设置下一次刷新
+        console.log('[HuizhiAuth] ComfyOrg token refreshed (fallback mode)')
         setupTokenRefresh()
       }
     } else if (response.status === 401) {
-      // Huizhi token 过期，需要重新登录
       console.warn('[HuizhiAuth] Session expired, redirecting to login')
       handleHuizhiLogout(false)
     }
   } catch (err) {
     console.error('[HuizhiAuth] Failed to refresh token:', err)
-    // 5 分钟后重试
     if (tokenRefreshTimer) clearTimeout(tokenRefreshTimer)
     tokenRefreshTimer = setTimeout(refreshComfyOrgToken, 5 * 60 * 1000)
   }
 }
 
-// ============= 绘智退出登录 (简化版，直接跳转) =============
-export function handleHuizhiLogout(confirmLogout = true): void {
+// ============= 绘智退出登录 =============
+export async function handleHuizhiLogout(confirmLogout = true): Promise<void> {
   if (confirmLogout && !confirm('确定要退出登录吗？')) {
     return
   }
@@ -445,13 +473,21 @@ export function handleHuizhiLogout(confirmLogout = true): void {
       if (socket && (socket.readyState === 0 || socket.readyState === 1)) {
         socket.close(1000, 'User logout')
       }
-      // 将 api.socket 置 null，这样 createSocket 的 `if (this.socket) return` 不会阻止后续重连
-      // 同时 close handler 中的 __HUIZHI_LOGOUT_IN_PROGRESS__ 检查也会阻止重连
       apiInstance.socket = null
     }
   } catch (e) { /* ignore */ }
 
-  // 清除存储
+  // 先调用 Firebase signOut 清除 Auth 持久化状态（IndexedDB 中的 session）
+  try {
+    const { getAuth, signOut } = await import('firebase/auth')
+    const auth = getAuth()
+    await signOut(auth)
+    console.log('[HuizhiAuth] Firebase signOut completed')
+  } catch (e) {
+    console.warn('[HuizhiAuth] Firebase signOut failed (non-critical):', e)
+  }
+
+  // 清除 localStorage
   Object.values(HUIZHI_STORAGE_KEYS).forEach((key) => {
     try { localStorage.removeItem(key) } catch (e) { /* ignore */ }
   })
@@ -481,12 +517,12 @@ export function handleHuizhiLogout(confirmLogout = true): void {
     document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`
   })
 
-  // 清除 IndexedDB
+  // 清除 IndexedDB（兜底，Firebase signOut 通常已经处理）
   try { indexedDB.deleteDatabase('firebaseLocalStorageDb') } catch (e) { /* ignore */ }
 
   console.log('[HuizhiAuth] Storage cleared, redirecting...')
 
-  // 直接跳转 — 用 window.location.href 整页刷新到登录页
+  // 整页刷新到登录页
   window.location.href = '/login?logout=1'
 }
 

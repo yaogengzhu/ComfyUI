@@ -191,6 +191,49 @@
         </div>
     </div>
 
+    <!-- Firebase SDK (用于 signInWithCustomToken 真正登录 Firebase) -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js';
+        import { getAuth, signInWithCustomToken } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js';
+
+        // PROD Firebase 配置 (dreamboothy)
+        const firebaseConfig = {
+            apiKey: 'AIzaSyC2-fomLqgCjb7ELwta1I9cEarPK8ziTGs',
+            authDomain: 'dreamboothy.firebaseapp.com',
+            databaseURL: 'https://dreamboothy-default-rtdb.firebaseio.com',
+            projectId: 'dreamboothy',
+            storageBucket: 'dreamboothy.appspot.com',
+            messagingSenderId: '357148958219',
+            appId: '1:357148958219:web:f5917f72e5f36a2015310e',
+            measurementId: 'G-3ZBD3MBTG4'
+        };
+
+        const app = initializeApp(firebaseConfig, 'huizhi-login');
+        const auth = getAuth(app);
+
+        /**
+         * 用 Firebase Custom Token 真正登录 Firebase。
+         * 登录成功后 ComfyUI 前端的 onAuthStateChanged 会收到真实的 Firebase User，
+         * getIdToken() 返回的就是 Comfy.org API 能验证的 prod Firebase ID Token。
+         */
+        window.__firebaseSignIn = async function(customToken) {
+            try {
+                const userCredential = await signInWithCustomToken(auth, customToken);
+                const idToken = await userCredential.user.getIdToken();
+                console.log('[Login] Firebase signIn success, uid:', userCredential.user.uid);
+                // 把真正的 Firebase ID Token 存到 comfy_org_token，
+                // 这样即使前端 Vue app 初始化前也能读到
+                localStorage.setItem('comfy_org_token', idToken);
+                const expiry = Date.now() + 3600 * 1000; // Firebase ID Token 默认 1 小时
+                localStorage.setItem('comfy_org_token_expiry', expiry.toString());
+                return { success: true, uid: userCredential.user.uid, idToken };
+            } catch (err) {
+                console.error('[Login] Firebase signIn failed:', err);
+                return { success: false, error: err.message };
+            }
+        };
+    </script>
+
     <script>
         // ========== 配置 ==========
         const AUTH_SERVICE_URL = 'http://localhost:3001';
@@ -303,47 +346,28 @@
         // ========== 存储 Token ==========
         async function saveTokens(data) {
             console.log('[Login] saveTokens called, data keys:', Object.keys(data));
-            console.log('[Login] comfyOrgToken type:', typeof data.comfyOrgToken, 'value:', data.comfyOrgToken ? (data.comfyOrgToken.substring(0, 30) + '...') : data.comfyOrgToken);
             
             localStorage.setItem(STORAGE_KEYS.HUIZHI_TOKEN, data.huizhiToken);
             
-            let comfyOrgToken = data.comfyOrgToken;
-            
-            // 如果 comfyOrgToken 为空，尝试通过刷新接口获取
-            if (!comfyOrgToken || comfyOrgToken === 'null' || comfyOrgToken === 'undefined') {
-                console.warn('[Login] comfyOrgToken is missing from login response, attempting refresh...');
-                try {
-                    const refreshResp = await fetch(`${AUTH_SERVICE_URL}/api/auth/refresh-comfy-token`, {
-                        method: 'POST',
-                        headers: {
-                            'Authorization': `Bearer ${data.huizhiToken}`,
-                            'Content-Type': 'application/json'
-                        }
-                    });
-                    if (refreshResp.ok) {
-                        const refreshData = await refreshResp.json();
-                        comfyOrgToken = refreshData.data?.comfyOrgToken;
-                        console.log('[Login] Got comfyOrgToken via refresh:', comfyOrgToken ? 'yes' : 'no');
-                    } else {
-                        console.error('[Login] Refresh failed:', refreshResp.status);
-                    }
-                } catch (refreshErr) {
-                    console.error('[Login] Refresh request failed:', refreshErr);
+            // ====== 优先使用 Firebase Custom Token 真正登录 ======
+            if (data.firebaseCustomToken && window.__firebaseSignIn) {
+                console.log('[Login] Got firebaseCustomToken, signing in to Firebase...');
+                const firebaseResult = await window.__firebaseSignIn(data.firebaseCustomToken);
+                if (firebaseResult.success) {
+                    console.log('[Login] Firebase sign-in SUCCESS! uid:', firebaseResult.uid);
+                    // Firebase ID Token 已由 __firebaseSignIn 写入 localStorage
+                } else {
+                    console.error('[Login] Firebase sign-in FAILED:', firebaseResult.error);
+                    // 失败时 fallback 到 comfyOrgToken
+                    await saveComfyOrgTokenFallback(data);
                 }
-            }
-            
-            // 防止存储 null/undefined 为字符串 "null"/"undefined"
-            if (comfyOrgToken && comfyOrgToken !== 'null' && comfyOrgToken !== 'undefined') {
-                localStorage.setItem(STORAGE_KEYS.COMFY_ORG_TOKEN, comfyOrgToken);
-                
-                const expiresAt = Date.now() + (data.comfyOrgTokenExpiresIn || 3600) * 1000;
-                localStorage.setItem(STORAGE_KEYS.COMFY_ORG_EXPIRY, expiresAt.toString());
-                console.log('[Login] ComfyOrg token stored, expires at:', new Date(expiresAt).toISOString());
             } else {
-                console.error('[Login] ComfyOrg token is STILL null after refresh attempt');
-                localStorage.setItem(STORAGE_KEYS.COMFY_ORG_EXPIRY, '0');
+                // 后端未返回 firebaseCustomToken，走旧的 External Token 模式
+                console.warn('[Login] No firebaseCustomToken, using external token fallback');
+                await saveComfyOrgTokenFallback(data);
             }
             
+            // 保存用户信息
             localStorage.setItem(STORAGE_KEYS.USER_INFO, JSON.stringify(data.user));
             
             const huizhiUserInfo = {
@@ -365,6 +389,39 @@
             }
             
             document.cookie = `comfy_token=${data.huizhiToken}; path=/; max-age=${60*60*24*7}; SameSite=Strict`;
+        }
+
+        // Fallback: 直接用后端给的 comfyOrgToken（External Token 模式）
+        async function saveComfyOrgTokenFallback(data) {
+            let comfyOrgToken = data.comfyOrgToken;
+            
+            if (!comfyOrgToken || comfyOrgToken === 'null' || comfyOrgToken === 'undefined') {
+                console.warn('[Login] comfyOrgToken is missing, attempting refresh...');
+                try {
+                    const refreshResp = await fetch(`${AUTH_SERVICE_URL}/api/auth/refresh-comfy-token`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${data.huizhiToken}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    if (refreshResp.ok) {
+                        const refreshData = await refreshResp.json();
+                        comfyOrgToken = refreshData.data?.comfyOrgToken;
+                    }
+                } catch (refreshErr) {
+                    console.error('[Login] Refresh request failed:', refreshErr);
+                }
+            }
+            
+            if (comfyOrgToken && comfyOrgToken !== 'null' && comfyOrgToken !== 'undefined') {
+                localStorage.setItem(STORAGE_KEYS.COMFY_ORG_TOKEN, comfyOrgToken);
+                const expiresAt = Date.now() + (data.comfyOrgTokenExpiresIn || 3600) * 1000;
+                localStorage.setItem(STORAGE_KEYS.COMFY_ORG_EXPIRY, expiresAt.toString());
+            } else {
+                console.error('[Login] ComfyOrg token is STILL null');
+                localStorage.setItem(STORAGE_KEYS.COMFY_ORG_EXPIRY, '0');
+            }
         }
 
         function clearTokens() {
