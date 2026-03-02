@@ -4,6 +4,7 @@ import { computed, watch } from 'vue'
 import { useApiKeyAuthStore } from '@/stores/apiKeyAuthStore'
 import { useCommandStore } from '@/stores/commandStore'
 import { useFirebaseAuthStore } from '@/stores/firebaseAuthStore'
+import { handleHuizhiLogout } from '@/services/huizhiAuthService'
 import type { AuthUserInfo } from '@/types/authTypes'
 
 export const useCurrentUser = () => {
@@ -116,11 +117,7 @@ export const useCurrentUser = () => {
   })
 
   const handleSignOut = async () => {
-    if (isApiKeyLogin.value) {
-      await apiKeyStore.clearStoredApiKey()
-    } else {
-      await commandStore.execute('Comfy.User.SignOut')
-    }
+    await handleHuizhiLogout(false)
   }
 
   const handleSignIn = async () => {
