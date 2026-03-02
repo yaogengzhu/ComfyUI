@@ -276,6 +276,11 @@ export const useFirebaseAuthStore = defineStore('firebaseAuth', () => {
   }
 
   const fetchBalance = async (): Promise<GetCustomerBalanceResponse | null> => {
+    // [绘智AI] 本地部署模式不需要从 Comfy.org 获取余额，跳过请求避免 Invalid token 错误
+    if (!isCloud && !currentUser.value) {
+      return null
+    }
+
     isFetchingBalance.value = true
     try {
       const authHeader = await getAuthHeader()
@@ -316,6 +321,11 @@ export const useFirebaseAuthStore = defineStore('firebaseAuth', () => {
   }
 
   const createCustomer = async (): Promise<CreateCustomerResponse> => {
+    // [绘智AI] 本地部署模式不需要在 Comfy.org 创建客户
+    if (!isCloud && !currentUser.value) {
+      return { id: 'huizhi-local-user' } as CreateCustomerResponse
+    }
+
     const authHeader = await getAuthHeader()
     if (!authHeader) {
       throw new FirebaseAuthStoreError(t('toastMessages.userNotAuthenticated'))

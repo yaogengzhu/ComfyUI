@@ -437,13 +437,17 @@ export function handleHuizhiLogout(confirmLogout = true): void {
     tokenRefreshTimer = null
   }
 
-  // 关闭 WebSocket
+  // 关闭 WebSocket 并将 api.socket 置 null 防止重连
   try {
-    const socket = (window as any).app?.api?.socket
-    if (socket && (socket.readyState === 0 || socket.readyState === 1)) {
-      socket.onclose = null
-      socket.onerror = null
-      socket.close(1000, 'User logout')
+    const apiInstance = (window as any).app?.api
+    if (apiInstance) {
+      const socket = apiInstance.socket
+      if (socket && (socket.readyState === 0 || socket.readyState === 1)) {
+        socket.close(1000, 'User logout')
+      }
+      // 将 api.socket 置 null，这样 createSocket 的 `if (this.socket) return` 不会阻止后续重连
+      // 同时 close handler 中的 __HUIZHI_LOGOUT_IN_PROGRESS__ 检查也会阻止重连
+      apiInstance.socket = null
     }
   } catch (e) { /* ignore */ }
 

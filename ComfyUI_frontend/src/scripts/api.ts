@@ -549,6 +549,11 @@ export class ComfyApi extends EventTarget {
       return
     }
 
+    // [绘智AI] 退出登录时阻止 WebSocket 重连
+    if ((window as any).__HUIZHI_LOGOUT_IN_PROGRESS__) {
+      return
+    }
+
     let opened = false
     let existingSession = window.name
 
@@ -615,14 +620,23 @@ export class ComfyApi extends EventTarget {
     })
 
     this.socket.addEventListener('close', () => {
-      setTimeout(async () => {
+      // [绘智AI] 退出登录时不触发重连和 reconnecting 提示
+      if ((window as any).__HUIZHI_LOGOUT_IN_PROGRESS__) {
         this.socket = null
-        await this.createSocket(true)
-      }, 300)
+        return
+      }
       if (opened) {
         this.dispatchCustomEvent('status', null)
         this.dispatchCustomEvent('reconnecting')
       }
+      setTimeout(async () => {
+        this.socket = null
+        // 再次检查，防止在 setTimeout 等待期间触发了登出
+        if ((window as any).__HUIZHI_LOGOUT_IN_PROGRESS__) {
+          return
+        }
+        await this.createSocket(true)
+      }, 300)
     })
 
     this.socket.addEventListener('message', (event) => {
