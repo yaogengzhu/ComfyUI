@@ -10,7 +10,7 @@
 import { ref } from 'vue'
 
 // ============= 配置 =============
-const AUTH_SERVICE_URL = 'http://localhost:3001'
+const AUTH_SERVICE_URL = 'http://43.138.44.254:3001'
 
 export const HUIZHI_STORAGE_KEYS = {
   TOKEN: 'huizhi_token',

@@ -1,0 +1,43 @@
+import { r as __name } from "./rolldown-runtime-DLICfi3-.js";
+import { D as computed, kt as ref } from "./vendor-vue-core-tg-oZu4l.js";
+import { i as remoteConfig } from "./useFeatureFlags-S1sG8YIk.js";
+import { bi as getTierCredits } from "./dialogService-B_z161HY.js";
+function useFreeTierOnboarding() {
+	const showEmailForm = ref(false);
+	const freeTierCredits = computed(() => getTierCredits("free"));
+	const isFreeTierEnabled = computed(() => remoteConfig.value.new_free_tier_subscriptions ?? false);
+	function switchToEmailForm() {
+		showEmailForm.value = true;
+	}
+	function switchToSocialLogin() {
+		showEmailForm.value = false;
+	}
+	return {
+		showEmailForm,
+		freeTierCredits,
+		isFreeTierEnabled,
+		switchToEmailForm,
+		switchToSocialLogin
+	};
+}
+var decodeQueryParam = (value) => {
+	try {
+		return decodeURIComponent(value);
+	} catch {
+		return null;
+	}
+};
+var isSafeInternalRedirectPath = (path) => {
+	return path.startsWith("/") && !path.startsWith("//");
+};
+const getSafePreviousFullPath = (query) => {
+	const raw = query.previousFullPath;
+	const value = Array.isArray(raw) ? raw[0] : raw;
+	if (!value) return null;
+	const decoded = decodeQueryParam(value);
+	if (!decoded) return null;
+	return isSafeInternalRedirectPath(decoded) ? decoded : null;
+};
+export { useFreeTierOnboarding as n, getSafePreviousFullPath as t };
+
+//# sourceMappingURL=previousFullPath-Ck0FM0y-.js.map
