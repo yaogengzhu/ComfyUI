@@ -41,9 +41,6 @@
           v-if="userStore.isMultiUserServer"
           :is-small="isSmall"
         />
-        <SidebarHelpCenterIcon v-if="!isIntegratedTabBar" :is-small="isSmall" />
-        <SidebarBottomPanelToggleButton v-if="!isCloud" :is-small="isSmall" />
-        <SidebarShortcutsToggleButton :is-small="isSmall" />
         <SidebarSettingsButton :is-small="isSmall" />
       </div>
     </div>

@@ -157,7 +157,7 @@
 
     <Divider class="mx-0 my-2" />
 
-    <!-- Workspace Settings (always shown) -->
+    <!-- Workspace Settings -->
     <div
       class="flex cursor-pointer items-center gap-2 px-4 py-2 hover:bg-secondary-background-hover"
       data-testid="workspace-settings-menu-item"
@@ -166,18 +166,6 @@
       <i class="icon-[lucide--users] text-sm text-muted-foreground" />
       <span class="flex-1 text-sm text-base-foreground">{{
         $t('userSettings.workspaceSettings')
-      }}</span>
-    </div>
-
-    <!-- Account Settings (always shown) -->
-    <div
-      class="flex cursor-pointer items-center gap-2 px-4 py-2 hover:bg-secondary-background-hover"
-      data-testid="user-settings-menu-item"
-      @click="handleOpenUserSettings"
-    >
-      <i class="icon-[lucide--settings-2] text-sm text-muted-foreground" />
-      <span class="flex-1 text-sm text-base-foreground">{{
-        $t('userSettings.accountSettings')
       }}</span>
     </div>
 
@@ -284,11 +272,6 @@ const showSubscribeAction = computed(
     permissions.value.canManageSubscription &&
     (!isActiveSubscription.value || isCancelled.value)
 )
-
-const handleOpenUserSettings = () => {
-  settingsDialog.show('user')
-  emit('close')
-}
 
 const handleOpenWorkspaceSettings = () => {
   settingsDialog.show('workspace')

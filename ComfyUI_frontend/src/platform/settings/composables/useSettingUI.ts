@@ -157,17 +157,6 @@ export function useSettingUI(
     return isActiveSubscription.value
   })
 
-  const userPanel: SettingPanelItem = {
-    node: {
-      key: 'user',
-      label: 'User',
-      children: []
-    },
-    component: defineAsyncComponent(
-      () => import('@/components/dialog/content/setting/UserPanel.vue')
-    )
-  }
-
   // Workspace panel: only available on cloud with team workspaces enabled
   const workspacePanel: SettingPanelItem = {
     node: {
@@ -237,7 +226,6 @@ export function useSettingUI(
     [
       aboutPanel,
       creditsPanel,
-      userPanel,
       ...(shouldShowWorkspacePanel.value ? [workspacePanel] : []),
       keybindingPanel,
       extensionPanel,
@@ -300,7 +288,6 @@ export function useSettingUI(
       key: 'general',
       label: 'General',
       children: [
-        translateCategory(userPanel.node),
         ...coreSettingCategories.value.slice(0, 1).map(translateCategory),
         ...(shouldShowSecretsPanel.value
           ? [translateCategory(secretsPanel.node)]
@@ -331,7 +318,6 @@ export function useSettingUI(
       key: 'account',
       label: 'Account',
       children: [
-        userPanel.node,
         ...(isLoggedIn.value &&
         shouldShowPlanCreditsPanel.value &&
         subscriptionPanel

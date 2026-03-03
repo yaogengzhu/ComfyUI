@@ -23,21 +23,6 @@
       </p>
     </div>
 
-    <Divider class="my-2 mx-0" />
-
-    <div
-      class="flex items-center gap-2 px-4 py-2 cursor-pointer hover:bg-secondary-background-hover"
-      data-testid="user-settings-menu-item"
-      @click="handleOpenUserSettings"
-    >
-      <i class="icon-[lucide--settings-2] text-muted-foreground text-sm" />
-      <span class="text-sm text-base-foreground flex-1">{{
-        $t('userSettings.accountSettings')
-      }}</span>
-    </div>
-
-    <Divider class="my-2 mx-0" />
-
     <div
       class="flex items-center gap-2 px-4 py-2 cursor-pointer hover:bg-secondary-background-hover"
       data-testid="logout-menu-item"
@@ -56,7 +41,6 @@ import Divider from 'primevue/divider'
 
 import UserAvatar from '@/components/common/UserAvatar.vue'
 import { useCurrentUser } from '@/composables/auth/useCurrentUser'
-import { useSettingsDialog } from '@/platform/settings/composables/useSettingsDialog'
 import { isHuizhiLoggedIn, handleHuizhiLogout } from '@/services/huizhiAuthService'
 
 const emit = defineEmits<{
@@ -65,12 +49,6 @@ const emit = defineEmits<{
 
 const { userDisplayName, userEmail, userPhotoUrl, handleSignOut } =
   useCurrentUser()
-const settingsDialog = useSettingsDialog()
-
-const handleOpenUserSettings = () => {
-  settingsDialog.show('user')
-  emit('close')
-}
 
 const handleLogout = async () => {
   // 绘智用户使用专用的退出逻辑
