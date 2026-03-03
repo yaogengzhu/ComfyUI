@@ -546,10 +546,37 @@ class AuthManager:
         
         @routes.post("/api/auth/logout")
         async def logout_handler(request):
-            """登出接口"""
-            token = request.headers.get("Authorization", "").replace("Bearer ", "")
-            self.logout(token)
-            return web.json_response({"success": True, "message": "已登出"})
+            """登出接口 - 清空所有登录态并重定向到登录页"""
+            # 获取 Token（支持多种方式）
+            token = (
+                request.headers.get("Authorization", "").replace("Bearer ", "") or
+                request.cookies.get("comfy_token", "") or
+                request.query.get("token", "")
+            )
+            
+            # 使会话失效
+            if token:
+                self.logout(token)
+            
+            # 创建响应并清空所有相关 Cookie
+            response = web.json_response({
+                "success": True,
+                "message": "已登出",
+                "redirect": "/login"
+            })
+            
+            # 清空所有可能的认证 Cookie
+            cookies_to_clear = ["comfy_token", "huizhi_token", "comfy_org_token"]
+            for cookie_name in cookies_to_clear:
+                response.set_cookie(
+                    cookie_name,
+                    "",
+                    max_age=0,
+                    path="/",
+                    expires="Thu, 01 Jan 1970 00:00:00 GMT"
+                )
+            
+            return response
         
         @routes.post("/api/auth/refresh")
         async def refresh_handler(request):

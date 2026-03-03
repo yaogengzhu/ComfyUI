@@ -160,12 +160,14 @@ def create_auth_middleware(auth_manager: 'AuthManager', enabled: bool = True):
         if path in REDIRECT_TO_LOGIN_PATHS:
             raise web.HTTPFound('/login')
         
-        # 对于 API 请求返回 401
+        # 对于 API 请求，返回 401（前端会处理重定向）
         if path.startswith("/api/") or path.startswith("/prompt") or path.startswith("/queue"):
+            # 如果是 API 请求，返回 JSON 错误，前端路由守卫会处理重定向
             return web.json_response({
                 "success": False,
                 "message": "未登录或 Token 已过期",
-                "code": "UNAUTHORIZED"
+                "code": "UNAUTHORIZED",
+                "redirect": "/login"
             }, status=401)
         
         # 对于 WebSocket 连接，返回 401
@@ -176,7 +178,9 @@ def create_auth_middleware(auth_manager: 'AuthManager', enabled: bool = True):
                 "code": "UNAUTHORIZED"
             }, status=401)
         
-        # 对于其他页面请求，重定向到登录页
+        # 对于所有其他页面请求（非 API、非静态资源），强制重定向到登录页
+        # 这确保退出登录后，任何页面访问都会回到登录页
+        logging.info(f"[AuthMiddleware] Unauthenticated access to {path}, redirecting to /login")
         raise web.HTTPFound('/login')
     
     return auth_middleware

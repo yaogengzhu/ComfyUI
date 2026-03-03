@@ -1,0 +1,14 @@
+{
+  "name": "绘智 AI",
+  "short_name": "绘智AI",
+  "description": "绘智 AI: 智能图像生成平台",
+  "start_url": "/",
+  "icons": [
+    {
+      "src": "/assets/images/huizhi-logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "display": "standalone"
+}

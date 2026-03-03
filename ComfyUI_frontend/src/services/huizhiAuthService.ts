@@ -310,6 +310,11 @@ function handleForceLogout(message?: string): void {
   }
   isLoggingOut.value = true
 
+  console.log('[HuizhiAuth] ========== Force logout ==========')
+
+  // 设置退出标志，阻止 WS 重连
+  ;(window as any).__HUIZHI_LOGOUT_IN_PROGRESS__ = true
+
   // 停止所有定时器
   stopDeviceCheckPolling()
   if (tokenRefreshTimer) {
@@ -317,26 +322,79 @@ function handleForceLogout(message?: string): void {
     tokenRefreshTimer = null
   }
 
-  // 清除所有 Token
+  // 关闭 WebSocket
+  try {
+    const apiInstance = (window as any).app?.api
+    if (apiInstance) {
+      const socket = apiInstance.socket
+      if (socket && (socket.readyState === 0 || socket.readyState === 1)) {
+        socket.close(1000, 'Force logout')
+      }
+      apiInstance.socket = null
+    }
+  } catch (e) { /* ignore */ }
+
+  // 清除所有 Token 和 localStorage
   Object.values(HUIZHI_STORAGE_KEYS).forEach((key) =>
     localStorage.removeItem(key)
   )
-  localStorage.removeItem('comfy_user')
-  localStorage.removeItem('comfy_refresh_token')
-  localStorage.removeItem('huizhi_user_info')
+  const keysToRemove = [
+    'comfy_user', 'comfy_refresh_token', 'huizhi_user_info',
+    'comfy_token', 'clientId'
+  ]
+  keysToRemove.forEach((key) => {
+    try { localStorage.removeItem(key) } catch (e) { /* ignore */ }
+  })
 
-  // 清除 Cookie
-  document.cookie =
-    'comfy_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+  // 清除 Firebase 相关 localStorage
+  const allKeys: string[] = []
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i)
+    if (key) allKeys.push(key)
+  }
+  allKeys.forEach((key) => {
+    if (key && (key.includes('firebase') || key.includes('comfy') || key.includes('huizhi'))) {
+      try { localStorage.removeItem(key) } catch (e) { /* ignore */ }
+    }
+  })
 
-  // 设置退出标志
-  sessionStorage.setItem('comfy_logout_in_progress', 'true')
+  // 清除所有认证 Cookie
+  const cookiesToClear = ['comfy_token', 'huizhi_token', 'comfy_org_token']
+  cookiesToClear.forEach((cookieName) => {
+    document.cookie = `${cookieName}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`
+    document.cookie = `${cookieName}=; path=/; domain=${window.location.hostname}; expires=Thu, 01 Jan 1970 00:00:00 GMT`
+  })
+
+  // 清除 sessionStorage（但保留消息）
+  try {
+    const loginMessage = message || sessionStorage.getItem('login_message')
+    sessionStorage.clear()
+    if (loginMessage) {
+      sessionStorage.setItem('login_message', loginMessage)
+    }
+    sessionStorage.setItem('comfy_logout_in_progress', 'true')
+  } catch (e) { /* ignore */ }
+
+  // 清除 IndexedDB
+  try { indexedDB.deleteDatabase('firebaseLocalStorageDb') } catch (e) { /* ignore */ }
+
+  console.log('[HuizhiAuth] Force logout: Storage cleared, redirecting to /login...')
+
+  // 构建登录页 URL（如果有消息，通过 URL 参数传递）
+  let loginUrl = '/login'
   if (message) {
-    sessionStorage.setItem('login_message', message)
+    // 如果消息包含"踢下线"相关，使用 kicked 参数
+    if (message.includes('其他设备') || message.includes('踢') || message.includes('下线')) {
+      loginUrl = '/login?kicked=1'
+    } else {
+      loginUrl = '/login?logout=1'
+    }
   }
 
-  // 跳转到登录页
-  window.location.href = '/login'
+  // 无论什么情况，都重定向到登录页
+  setTimeout(() => {
+    window.location.href = loginUrl
+  }, 0)
 }
 
 // ============= Token 刷新 =============
@@ -465,16 +523,49 @@ export async function handleHuizhiLogout(confirmLogout = true): Promise<void> {
     }
   } catch (e) { /* ignore */ }
 
-  // 先调用 Firebase signOut 清除 Auth 持久化状态（IndexedDB 中的 session）
+  // ========== 第一步：先退出 ComfyUI 登录 ==========
   try {
-    const { getAuth, signOut } = await import('firebase/auth')
-    const auth = getAuth()
-    await signOut(auth)
-    console.log('[HuizhiAuth] Firebase signOut completed')
+    // 动态导入 useFirebaseAuthStore 并调用 logout
+    const { useFirebaseAuthStore } = await import('@/stores/firebaseAuthStore')
+    const authStore = useFirebaseAuthStore()
+    if (authStore && typeof authStore.logout === 'function') {
+      console.log('[HuizhiAuth] Logging out from ComfyUI Firebase Auth...')
+      await authStore.logout()
+      console.log('[HuizhiAuth] ComfyUI logout completed')
+    }
   } catch (e) {
-    console.warn('[HuizhiAuth] Firebase signOut failed (non-critical):', e)
+    console.warn('[HuizhiAuth] ComfyUI logout failed, trying Firebase signOut directly:', e)
+    // 如果 authStore.logout 失败，直接调用 Firebase signOut
+    try {
+      const { getAuth, signOut } = await import('firebase/auth')
+      const auth = getAuth()
+      await signOut(auth)
+      console.log('[HuizhiAuth] Firebase signOut completed (fallback)')
+    } catch (firebaseErr) {
+      console.warn('[HuizhiAuth] Firebase signOut failed (non-critical):', firebaseErr)
+    }
   }
 
+  // ========== 第二步：退出绘智登录（调用后端接口）==========
+  try {
+    const token = localStorage.getItem(HUIZHI_STORAGE_KEYS.TOKEN) || 
+                  localStorage.getItem('comfy_token')
+    if (token) {
+      console.log('[HuizhiAuth] Calling backend logout API...')
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }).catch(() => { /* ignore */ })
+      console.log('[HuizhiAuth] Backend logout API called')
+    }
+  } catch (e) {
+    console.warn('[HuizhiAuth] Backend logout API call failed:', e)
+  }
+
+  // ========== 第三步：清除所有存储 ==========
   // 清除 localStorage
   Object.values(HUIZHI_STORAGE_KEYS).forEach((key) => {
     try { localStorage.removeItem(key) } catch (e) { /* ignore */ }
@@ -499,19 +590,44 @@ export async function handleHuizhiLogout(confirmLogout = true): Promise<void> {
     }
   })
 
-  // 清除 Cookie
+  // 清除 Cookie（包括所有可能的认证 Cookie）
+  const cookiesToClear = ['comfy_token', 'huizhi_token', 'comfy_org_token']
+  cookiesToClear.forEach((cookieName) => {
+    document.cookie = `${cookieName}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`
+    document.cookie = `${cookieName}=; path=/; domain=${window.location.hostname}; expires=Thu, 01 Jan 1970 00:00:00 GMT`
+  })
+  
+  // 清除所有 Cookie（兜底）
   document.cookie.split(';').forEach((cookie) => {
     const name = cookie.split('=')[0].trim()
-    document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`
+    if (name) {
+      document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`
+    }
   })
 
   // 清除 IndexedDB（兜底，Firebase signOut 通常已经处理）
   try { indexedDB.deleteDatabase('firebaseLocalStorageDb') } catch (e) { /* ignore */ }
 
-  console.log('[HuizhiAuth] Storage cleared, redirecting...')
+  // 清除 sessionStorage
+  try {
+    sessionStorage.clear()
+  } catch (e) { /* ignore */ }
 
-  // 整页刷新到登录页
-  window.location.href = '/login?logout=1'
+  console.log('[HuizhiAuth] All storage cleared, redirecting to /login...')
+
+  // ========== 第四步：强制重定向到登录页 ==========
+  // 无论什么情况，都重定向到登录页
+  // 使用 setTimeout 确保所有清理操作完成
+  setTimeout(() => {
+    // 强制重定向，即使有其他地方可能阻止
+    window.location.replace('/login?logout=1')
+    // 如果 replace 失败，使用 href 作为备选
+    setTimeout(() => {
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login?logout=1'
+      }
+    }, 100)
+  }, 0)
 }
 
 // ============= 初始化绘智认证服务 =============

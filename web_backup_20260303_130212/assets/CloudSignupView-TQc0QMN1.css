@@ -1,0 +1,14 @@
+
+[data-v-e27dda05] .p-inputtext {
+  border: none !important;
+  box-shadow: none !important;
+  background: #2d2e32 !important;
+}
+[data-v-e27dda05] .p-password input {
+  border: none !important;
+  box-shadow: none !important;
+}
+[data-v-e27dda05] .p-checkbox-checked .p-checkbox-box {
+  background-color: #f0ff41 !important;
+  border-color: #f0ff41 !important;
+}

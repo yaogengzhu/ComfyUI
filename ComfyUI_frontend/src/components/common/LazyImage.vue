@@ -2,7 +2,7 @@
   <div
     ref="containerRef"
     class="relative flex h-full w-full items-center justify-center overflow-hidden"
-    :class="containerClass"
+    :class="containerClass as string"
   >
     <Skeleton
       v-if="!isImageLoaded"
@@ -15,7 +15,7 @@
       :src="cachedSrc"
       :alt="alt"
       draggable="false"
-      :class="imageClass"
+      :class="imageClass as string"
       :style="imageStyle"
       @load="onImageLoad"
       @error="onImageError"
@@ -28,7 +28,7 @@
         src="/assets/images/default-template.png"
         :alt="alt"
         draggable="false"
-        :class="imageClass"
+        :class="imageClass as string"
         :style="imageStyle"
       />
     </div>

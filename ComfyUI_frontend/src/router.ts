@@ -13,6 +13,7 @@ import { useTelemetry } from '@/platform/telemetry'
 import { useDialogService } from '@/services/dialogService'
 import { useFirebaseAuthStore } from '@/stores/firebaseAuthStore'
 import { useUserStore } from '@/stores/userStore'
+import { isHuizhiLoggedIn } from '@/services/huizhiAuthService'
 import LayoutDefault from '@/views/layouts/LayoutDefault.vue'
 
 import { installPreservedQueryTracker } from '@/platform/navigation/preservedQueryTracker'
@@ -108,6 +109,38 @@ installPreservedQueryTracker(router, [
 router.afterEach(() => {
   trackPageView()
 })
+
+// ========== 绘智登录路由守卫（非云端模式） ==========
+if (!isCloud) {
+  // 公开路径（不需要登录）
+  const PUBLIC_PATHS = new Set(['/login', '/register'])
+  
+  router.beforeEach(async (to, _from, next) => {
+    // 如果是公开路径，直接放行
+    if (PUBLIC_PATHS.has(to.path)) {
+      return next()
+    }
+    
+    // 检查绘智登录状态
+    const isLoggedIn = isHuizhiLoggedIn()
+    
+    // 如果未登录，重定向到登录页
+    if (!isLoggedIn) {
+      console.log('[Router] Not logged in, redirecting to /login')
+      // 保存原始路径，登录后可以跳转回来
+      const query = to.path !== '/' 
+        ? { redirect: encodeURIComponent(to.fullPath) }
+        : {}
+      return next({
+        path: '/login',
+        query
+      })
+    }
+    
+    // 已登录，继续导航
+    return next()
+  })
+}
 
 if (isCloud) {
   const { flags } = useFeatureFlags()

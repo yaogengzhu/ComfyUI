@@ -32,7 +32,8 @@ import { useUserStore } from '@/stores/userStore'
 
 const userStore = useUserStore()
 const logout = async () => {
-  await userStore.logout()
-  window.location.reload()
+  // 统一使用绘智退出登录逻辑，确保清空所有登录态并重定向到 /login
+  const { handleHuizhiLogout } = await import('@/services/huizhiAuthService')
+  await handleHuizhiLogout(false)
 }
 </script>
