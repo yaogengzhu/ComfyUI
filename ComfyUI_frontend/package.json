@@ -131,6 +131,8 @@
     "@storybook/addon-mcp": "catalog:",
     "@storybook/vue3": "catalog:",
     "@storybook/vue3-vite": "catalog:",
+    "@swc-node/register": "catalog:",
+    "@swc/core": "catalog:",
     "@tailwindcss/vite": "catalog:",
     "@types/fs-extra": "catalog:",
     "@types/jsdom": "catalog:",

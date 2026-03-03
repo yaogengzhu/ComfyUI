@@ -31,6 +31,8 @@ catalog:
   '@storybook/addon-mcp': 0.1.6
   '@storybook/vue3': ^10.2.10
   '@storybook/vue3-vite': ^10.2.10
+  '@swc-node/register': ^1.11.1
+  '@swc/core': ^1.15.18
   '@tailwindcss/vite': ^4.2.0
   '@tiptap/core': ^2.27.2
   '@tiptap/extension-link': ^2.27.2

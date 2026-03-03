@@ -56,10 +56,7 @@ import { useI18n } from 'vue-i18n'
 
 import HelpCenterPopups from '@/components/helpcenter/HelpCenterPopups.vue'
 import ComfyMenuButton from '@/components/sidebar/ComfyMenuButton.vue'
-import SidebarBottomPanelToggleButton from '@/components/sidebar/SidebarBottomPanelToggleButton.vue'
 import SidebarSettingsButton from '@/components/sidebar/SidebarSettingsButton.vue'
-import SidebarShortcutsToggleButton from '@/components/sidebar/SidebarShortcutsToggleButton.vue'
-import { isCloud } from '@/platform/distribution/types'
 import { useSettingStore } from '@/platform/settings/settingStore'
 import { useTelemetry } from '@/platform/telemetry'
 import { useCanvasStore } from '@/renderer/core/canvas/canvasStore'
@@ -70,7 +67,6 @@ import { useWorkspaceStore } from '@/stores/workspaceStore'
 import type { SidebarTabExtension } from '@/types/extensionTypes'
 import { cn } from '@/utils/tailwindUtil'
 
-import SidebarHelpCenterIcon from './SidebarHelpCenterIcon.vue'
 import SidebarIcon from './SidebarIcon.vue'
 import SidebarLogoutIcon from './SidebarLogoutIcon.vue'
 import SidebarTemplatesButton from './SidebarTemplatesButton.vue'
@@ -92,9 +88,6 @@ const sidebarLocation = computed<'left' | 'right'>(() =>
   settingStore.get('Comfy.Sidebar.Location')
 )
 const sidebarStyle = computed(() => settingStore.get('Comfy.Sidebar.Style'))
-const isIntegratedTabBar = computed(
-  () => settingStore.get('Comfy.UI.TabBarLayout') === 'Integrated'
-)
 const isConnected = computed(
   () =>
     selectedTab.value ||

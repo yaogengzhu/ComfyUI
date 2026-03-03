@@ -37,8 +37,6 @@
 </template>
 
 <script setup lang="ts">
-import Divider from 'primevue/divider'
-
 import UserAvatar from '@/components/common/UserAvatar.vue'
 import { useCurrentUser } from '@/composables/auth/useCurrentUser'
 import { isHuizhiLoggedIn, handleHuizhiLogout } from '@/services/huizhiAuthService'
