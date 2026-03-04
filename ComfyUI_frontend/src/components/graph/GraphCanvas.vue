@@ -34,9 +34,7 @@
     <template v-if="showUI && !isBuilderMode" #topmenu>
       <TopMenuSection />
     </template>
-    <template v-if="showUI" #bottom-panel>
-      <BottomPanel />
-    </template>
+    <template v-if="showUI" #bottom-panel></template>
     <template v-if="showUI" #right-side-panel>
       <AppBuilder v-if="mode === 'builder:select'" />
       <NodePropertiesPanel v-else-if="!isBuilderMode" />
@@ -126,7 +124,6 @@ import { useI18n } from 'vue-i18n'
 import { isMiddlePointerInput } from '@/base/pointerUtils'
 import LiteGraphCanvasSplitterOverlay from '@/components/LiteGraphCanvasSplitterOverlay.vue'
 import TopMenuSection from '@/components/TopMenuSection.vue'
-import BottomPanel from '@/components/bottomPanel/BottomPanel.vue'
 import AppBuilder from '@/components/builder/AppBuilder.vue'
 import ExtensionSlot from '@/components/common/ExtensionSlot.vue'
 import DomWidgets from '@/components/graph/DomWidgets.vue'

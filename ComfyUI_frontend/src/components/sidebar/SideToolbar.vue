@@ -44,7 +44,6 @@
         <SidebarSettingsButton :is-small="isSmall" />
       </div>
     </div>
-    <HelpCenterPopups :is-small="isSmall" />
   </nav>
 </template>
 
@@ -54,7 +53,6 @@ import { debounce } from 'es-toolkit/compat'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import HelpCenterPopups from '@/components/helpcenter/HelpCenterPopups.vue'
 import ComfyMenuButton from '@/components/sidebar/ComfyMenuButton.vue'
 import SidebarSettingsButton from '@/components/sidebar/SidebarSettingsButton.vue'
 import { useSettingStore } from '@/platform/settings/settingStore'

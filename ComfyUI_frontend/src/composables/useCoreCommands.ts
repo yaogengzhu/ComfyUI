@@ -40,7 +40,6 @@ import { useDialogService } from '@/services/dialogService'
 import { useLitegraphService } from '@/services/litegraphService'
 import type { ComfyCommand } from '@/stores/commandStore'
 import { useExecutionStore } from '@/stores/executionStore'
-import { useHelpCenterStore } from '@/stores/helpCenterStore'
 import {
   useQueueSettingsStore,
   useQueueStore,
@@ -1082,15 +1081,6 @@ export function useCoreCommands(): ComfyCommand[] {
           showToastOnLegacyError: false
         })
       }
-    },
-    {
-      id: 'Comfy.ToggleHelpCenter',
-      icon: 'pi pi-question-circle',
-      label: 'Help Center',
-      function: () => {
-        useHelpCenterStore().toggle()
-      },
-      active: () => useHelpCenterStore().isVisible
     },
     {
       id: 'Comfy.ToggleCanvasInfo',
