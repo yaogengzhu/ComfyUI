@@ -494,6 +494,13 @@
         
         // ========== 页面初始化 ==========
         window.onload = function() {
+            // 自动聚焦到用户名输入框，避免某些情况下无法点击聚焦
+            try {
+                const usernameInput = document.getElementById('login-username');
+                if (usernameInput) {
+                    usernameInput.focus();
+                }
+            } catch (e) { /* ignore */ }
             const urlParams = new URLSearchParams(window.location.search);
             
             // 检查是否被踢下线
@@ -514,7 +521,7 @@
             const huizhiToken = localStorage.getItem(STORAGE_KEYS.HUIZHI_TOKEN);
             const comfyOrgToken = localStorage.getItem(STORAGE_KEYS.COMFY_ORG_TOKEN);
             
-            if (huizhiToken && comfyOrgToken) {
+                    if (huizhiToken && comfyOrgToken) {
                 const deviceId = localStorage.getItem(STORAGE_KEYS.DEVICE_ID);
                 
                 fetch(`${AUTH_SERVICE_URL}/api/auth/me`, {
@@ -539,7 +546,7 @@
                 }).catch(() => {
                     // 认证服务不可用，但有 Token，先让用户进入
                 });
-            }
+        }
         };
     </script>
 </body>
