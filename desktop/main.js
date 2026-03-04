@@ -1715,6 +1715,27 @@ ipcMain.handle('select-python-path', async () => {
     return { success: false };
 });
 
+// 应用窗口控制（供渲染进程通过 electronAPI 使用）
+ipcMain.on('app-quit', () => {
+    app.quit();
+});
+
+ipcMain.on('app-minimize', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.minimize();
+    }
+});
+
+ipcMain.on('app-maximize', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        if (mainWindow.isMaximized()) {
+            mainWindow.unmaximize();
+        } else {
+            mainWindow.maximize();
+        }
+    }
+});
+
 // ============ Splash 窗口控制 ============
 
 ipcMain.on('splash-close', () => {

@@ -473,8 +473,14 @@
                         showMessage('登录成功', 'success');
                     }
                     
+                    // 使用绝对地址重定向到 ComfyUI 首页，避免在 Electron 环境下相对路径解析异常
                     setTimeout(() => {
-                        window.location.href = '/';
+                        const targetUrl = COMFYUI_URL + '/?ts=' + Date.now();
+                        try {
+                            window.location.replace(targetUrl);
+                        } catch (e) {
+                            window.location.href = targetUrl;
+                        }
                     }, 800);
                 } else {
                     showMessage(result.error || result.message || '登录失败', 'error');
@@ -518,7 +524,12 @@
                     }
                 }).then(res => res.json()).then(data => {
                     if (data.success) {
-                        window.location.href = '/';
+                        const targetUrl = COMFYUI_URL + '/?ts=' + Date.now();
+                        try {
+                            window.location.replace(targetUrl);
+                        } catch (e) {
+                            window.location.href = targetUrl;
+                        }
                     } else if (data.error_code === 'device_mismatch') {
                         clearTokens();
                         showMessage('您的账号已在其他设备登录', 'warning');
