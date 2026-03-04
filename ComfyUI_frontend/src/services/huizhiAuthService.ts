@@ -608,6 +608,16 @@ export async function handleHuizhiLogout(confirmLogout = true): Promise<void> {
   // 清除 IndexedDB（兜底，Firebase signOut 通常已经处理）
   try { indexedDB.deleteDatabase('firebaseLocalStorageDb') } catch (e) { /* ignore */ }
 
+  // 清除 Service Worker / CacheStorage（如果存在）
+  try {
+    if ('caches' in window) {
+      const cacheKeys = await caches.keys()
+      await Promise.all(cacheKeys.map((key) => caches.delete(key)))
+    }
+  } catch (e) {
+    // ignore cache cleanup errors
+  }
+
   // 清除 sessionStorage
   try {
     sessionStorage.clear()
@@ -619,12 +629,13 @@ export async function handleHuizhiLogout(confirmLogout = true): Promise<void> {
   // 无论什么情况，都重定向到登录页
   // 使用 setTimeout 确保所有清理操作完成
   setTimeout(() => {
+    const loginUrl = `${window.location.origin}/login?logout=1&ts=${Date.now()}`
     // 强制重定向，即使有其他地方可能阻止
-    window.location.replace('/login?logout=1')
+    window.location.replace(loginUrl)
     // 如果 replace 失败，使用 href 作为备选
     setTimeout(() => {
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login?logout=1'
+      if (!window.location.pathname.startsWith('/login')) {
+        window.location.href = loginUrl
       }
     }, 100)
   }, 0)
