@@ -14,17 +14,21 @@ import { onBeforeUnmount, onMounted } from 'vue'
 
 import { useSettingStore } from '@/platform/settings/settingStore'
 import { useWorkflowStore } from '@/platform/workflow/management/stores/workflowStore'
+import { isDesktop } from '@/platform/distribution/types'
 
 const settingStore = useSettingStore()
 const workflowStore = useWorkflowStore()
 
 const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-  if (
-    settingStore.get('Comfy.Window.UnloadConfirmation') &&
-    workflowStore.modifiedWorkflows.length > 0
-  ) {
-    event.preventDefault()
-    return true
+  // 桌面版不拦截窗口关闭，避免 Electron 无法正常退出
+  if (!isDesktop) {
+    if (
+      settingStore.get('Comfy.Window.UnloadConfirmation') &&
+      workflowStore.modifiedWorkflows.length > 0
+    ) {
+      event.preventDefault()
+      return true
+    }
   }
   return undefined
 }
