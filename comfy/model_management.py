@@ -197,17 +197,15 @@ def get_torch_device():
             return torch.device("npu", torch.npu.current_device())
         elif is_mlu():
             return torch.device("mlu", torch.mlu.current_device())
-        else:
-            # On systems where PyTorch is compiled without CUDA support,
-            # accessing torch.cuda.current_device() raises an AssertionError.
-            # In that case we transparently fall back to CPU.
-            try:
-                if not torch.cuda.is_available():
-                    return torch.device("cpu")
+        # Default branch: prefer CUDA if available, otherwise fall back to CPU.
+        # Some environments (like CPU-only torch builds) raise AssertionError
+        # when touching torch.cuda.* APIs, so guard this access.
+        try:
+            if hasattr(torch, "cuda") and torch.cuda.is_available():
                 return torch.device(torch.cuda.current_device())
-            except AssertionError:
-                logging.warning("Torch not compiled with CUDA enabled; falling back to CPU device.")
-                return torch.device("cpu")
+        except AssertionError:
+            logging.warning("Torch reported as CUDA build but raised AssertionError; using CPU instead.")
+        return torch.device("cpu")
 
 def get_total_memory(dev=None, torch_total_too=False):
     global directml_enabled
