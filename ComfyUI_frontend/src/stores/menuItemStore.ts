@@ -69,6 +69,7 @@ export const useMenuItemStore = defineStore('menuItem', () => {
   const registerCommands = (path: string[], commandIds: string[]) => {
     const items = commandIds
       .map((commandId) => commandStore.getCommand(commandId))
+      .filter((command): command is NonNullable<typeof command> => command != null)
       .map(
         (command) =>
           ({
@@ -80,7 +81,9 @@ export const useMenuItemStore = defineStore('menuItem', () => {
             parentPath: path.join('.')
           }) as MenuItem
       )
-    registerMenuGroup(path, items)
+    if (items.length > 0) {
+      registerMenuGroup(path, items)
+    }
   }
 
   const loadExtensionMenuCommands = (extension: ComfyExtension) => {

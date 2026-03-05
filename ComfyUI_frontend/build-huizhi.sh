@@ -37,14 +37,10 @@ echo "📋 复制构建产物到 ComfyUI..."
 
 COMFYUI_WEB_DIR="../web"
 
-# 备份原有 web 目录
+# 直接覆盖 web 目录（不做备份）
 if [ -d "$COMFYUI_WEB_DIR" ]; then
-    BACKUP_DIR="../web_backup_$(date +%Y%m%d_%H%M%S)"
-    echo "📁 备份原有 web 目录到: $BACKUP_DIR"
-    mv "$COMFYUI_WEB_DIR" "$BACKUP_DIR"
+    rm -rf "$COMFYUI_WEB_DIR"
 fi
-
-# 复制新的构建产物
 echo "📋 复制 dist 到 ComfyUI/web..."
 cp -r dist "$COMFYUI_WEB_DIR"
 
