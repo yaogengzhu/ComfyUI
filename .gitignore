@@ -43,3 +43,5 @@ ComfyUI_frontend/apps/*/node_modules/
 # 其他通用忽略
 *.tsbuildinfo
 .turbo/
+
+*web

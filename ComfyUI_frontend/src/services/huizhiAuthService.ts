@@ -494,6 +494,7 @@ async function refreshComfyOrgToken(): Promise<void> {
 }
 
 // ============= 绘智退出登录 =============
+// 先做同步清理并立即重定向，避免等待 Firebase/后端导致界面卡死；异步清理在后台执行不阻塞
 export async function handleHuizhiLogout(confirmLogout = true): Promise<void> {
   if (confirmLogout && !confirm('确定要退出登录吗？')) {
     return
@@ -501,8 +502,14 @@ export async function handleHuizhiLogout(confirmLogout = true): Promise<void> {
 
   console.log('[HuizhiAuth] ========== Starting logout ==========')
 
+  // 先保存 token，供后台登出请求使用（清除存储后无法再读）
+  const tokenForBackend =
+    localStorage.getItem(HUIZHI_STORAGE_KEYS.TOKEN) ||
+    localStorage.getItem('comfy_token')
+
   // 设置退出标志，阻止 WS 重连
   ;(window as any).__HUIZHI_LOGOUT_IN_PROGRESS__ = true
+  isLoggingOut.value = true
 
   // 停止定时器
   stopDeviceCheckPolling()
@@ -523,50 +530,7 @@ export async function handleHuizhiLogout(confirmLogout = true): Promise<void> {
     }
   } catch (e) { /* ignore */ }
 
-  // ========== 第一步：先退出 ComfyUI 登录 ==========
-  try {
-    // 动态导入 useFirebaseAuthStore 并调用 logout
-    const { useFirebaseAuthStore } = await import('@/stores/firebaseAuthStore')
-    const authStore = useFirebaseAuthStore()
-    if (authStore && typeof authStore.logout === 'function') {
-      console.log('[HuizhiAuth] Logging out from ComfyUI Firebase Auth...')
-      await authStore.logout()
-      console.log('[HuizhiAuth] ComfyUI logout completed')
-    }
-  } catch (e) {
-    console.warn('[HuizhiAuth] ComfyUI logout failed, trying Firebase signOut directly:', e)
-    // 如果 authStore.logout 失败，直接调用 Firebase signOut
-    try {
-      const { getAuth, signOut } = await import('firebase/auth')
-      const auth = getAuth()
-      await signOut(auth)
-      console.log('[HuizhiAuth] Firebase signOut completed (fallback)')
-    } catch (firebaseErr) {
-      console.warn('[HuizhiAuth] Firebase signOut failed (non-critical):', firebaseErr)
-    }
-  }
-
-  // ========== 第二步：退出绘智登录（调用后端接口）==========
-  try {
-    const token = localStorage.getItem(HUIZHI_STORAGE_KEYS.TOKEN) || 
-                  localStorage.getItem('comfy_token')
-    if (token) {
-      console.log('[HuizhiAuth] Calling backend logout API...')
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      }).catch(() => { /* ignore */ })
-      console.log('[HuizhiAuth] Backend logout API called')
-    }
-  } catch (e) {
-    console.warn('[HuizhiAuth] Backend logout API call failed:', e)
-  }
-
-  // ========== 第三步：清除所有存储 ==========
-  // 清除 localStorage
+  // ========== 同步清理存储（不 await 任何网络/异步，避免卡死）==========
   Object.values(HUIZHI_STORAGE_KEYS).forEach((key) => {
     try { localStorage.removeItem(key) } catch (e) { /* ignore */ }
   })
@@ -577,12 +541,10 @@ export async function handleHuizhiLogout(confirmLogout = true): Promise<void> {
   keysToRemove.forEach((key) => {
     try { localStorage.removeItem(key) } catch (e) { /* ignore */ }
   })
-
-  // 清除 Firebase 相关 localStorage
   const allKeys: string[] = []
   for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i)
-    if (key) allKeys.push(key)
+    const k = localStorage.key(i)
+    if (k) allKeys.push(k)
   }
   allKeys.forEach((key) => {
     if (key && (key.includes('firebase') || key.includes('comfy') || key.includes('huizhi'))) {
@@ -590,14 +552,11 @@ export async function handleHuizhiLogout(confirmLogout = true): Promise<void> {
     }
   })
 
-  // 清除 Cookie（包括所有可能的认证 Cookie）
   const cookiesToClear = ['comfy_token', 'huizhi_token', 'comfy_org_token']
   cookiesToClear.forEach((cookieName) => {
     document.cookie = `${cookieName}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`
     document.cookie = `${cookieName}=; path=/; domain=${window.location.hostname}; expires=Thu, 01 Jan 1970 00:00:00 GMT`
   })
-  
-  // 清除所有 Cookie（兜底）
   document.cookie.split(';').forEach((cookie) => {
     const name = cookie.split('=')[0].trim()
     if (name) {
@@ -605,40 +564,39 @@ export async function handleHuizhiLogout(confirmLogout = true): Promise<void> {
     }
   })
 
-  // 清除 IndexedDB（兜底，Firebase signOut 通常已经处理）
+  try { sessionStorage.clear() } catch (e) { /* ignore */ }
   try { indexedDB.deleteDatabase('firebaseLocalStorageDb') } catch (e) { /* ignore */ }
 
-  // 清除 Service Worker / CacheStorage（如果存在）
-  try {
-    if ('caches' in window) {
-      const cacheKeys = await caches.keys()
-      await Promise.all(cacheKeys.map((key) => caches.delete(key)))
-    }
-  } catch (e) {
-    // ignore cache cleanup errors
-  }
+  const loginUrl = `${window.location.origin}/login?logout=1&ts=${Date.now()}`
 
-  // 清除 sessionStorage
-  try {
-    sessionStorage.clear()
-  } catch (e) { /* ignore */ }
-
-  console.log('[HuizhiAuth] All storage cleared, redirecting to /login...')
-
-  // ========== 第四步：强制重定向到登录页 ==========
-  // 无论什么情况，都重定向到登录页
-  // 使用 setTimeout 确保所有清理操作完成
+  // ========== 立即重定向，不等待任何异步（避免卡死）==========
+  console.log('[HuizhiAuth] Storage cleared, redirecting to /login...')
   setTimeout(() => {
-    const loginUrl = `${window.location.origin}/login?logout=1&ts=${Date.now()}`
-    // 强制重定向，即使有其他地方可能阻止
     window.location.replace(loginUrl)
-    // 如果 replace 失败，使用 href 作为备选
     setTimeout(() => {
       if (!window.location.pathname.startsWith('/login')) {
         window.location.href = loginUrl
       }
-    }, 100)
+    }, 80)
   }, 0)
+
+  // ========== 后台异步清理（不阻塞，不 await）==========
+  if (tokenForBackend) {
+    fetch('/api/auth/logout', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${tokenForBackend}`,
+        'Content-Type': 'application/json'
+      }
+    }).catch(() => { /* ignore */ })
+  }
+  import('@/stores/firebaseAuthStore').then(({ useFirebaseAuthStore }) => {
+    const authStore = useFirebaseAuthStore()
+    if (authStore?.logout) authStore.logout().catch(() => {})
+  }).catch(() => {})
+  if ('caches' in window) {
+    caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k)))).catch(() => {})
+  }
 }
 
 // ============= 初始化绘智认证服务 =============
