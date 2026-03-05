@@ -49,7 +49,19 @@
           "!*.pyc",
           "!__pycache__/**",
           "!temp/**",
-          "!output/**"
+          "!output/**",
+          "!models/**",
+          "!ComfyUI_frontend/node_modules/**",
+          "!ComfyUI_frontend/dist/**",
+          "!ComfyUI_frontend/.nx/**",
+          "!ComfyUI_frontend/coverage/**",
+          "!ComfyUI_frontend/packages/*/node_modules/**",
+          "!ComfyUI_frontend/apps/*/node_modules/**",
+          "!venv/**",
+          "!.venv/**",
+          "!**/venv/**",
+          "!custom_nodes/**",
+          "!user/**"
         ]
       }
     ],
