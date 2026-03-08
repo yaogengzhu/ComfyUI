@@ -52,7 +52,6 @@
           "!output/**",
           "!models/**",
           "!ComfyUI_frontend/node_modules/**",
-          "!ComfyUI_frontend/dist/**",
           "!ComfyUI_frontend/.nx/**",
           "!ComfyUI_frontend/coverage/**",
           "!ComfyUI_frontend/packages/*/node_modules/**",

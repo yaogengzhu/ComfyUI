@@ -21,14 +21,22 @@ const workflowStore = useWorkflowStore()
 
 const handleBeforeUnload = (event: BeforeUnloadEvent) => {
   // 桌面版不拦截窗口关闭，避免 Electron 无法正常退出
-  if (!isDesktop) {
-    if (
-      settingStore.get('Comfy.Window.UnloadConfirmation') &&
-      workflowStore.modifiedWorkflows.length > 0
-    ) {
-      event.preventDefault()
-      return true
-    }
+  const willBlock =
+    !isDesktop &&
+    !!settingStore.get('Comfy.Window.UnloadConfirmation') &&
+    workflowStore.modifiedWorkflows.length > 0
+  // 始终在可能拦截时打日志，便于排查“点击无法关闭”
+  if (willBlock || import.meta.env.DEV || (typeof window !== 'undefined' && (window as any).__HUIZHI_DEBUG_UNLOAD__)) {
+    console.log('[绘智/Unload] beforeunload', {
+      isDesktop,
+      unloadConfirmation: settingStore.get('Comfy.Window.UnloadConfirmation'),
+      modifiedCount: workflowStore.modifiedWorkflows.length,
+      willBlock
+    })
+  }
+  if (willBlock) {
+    event.preventDefault()
+    return true
   }
   return undefined
 }

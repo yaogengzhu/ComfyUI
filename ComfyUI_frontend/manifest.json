@@ -1,14 +1,27 @@
 {
   "name": "绘智 AI",
   "short_name": "绘智AI",
-  "description": "绘智 AI: 智能图像生成平台",
+  "description": "绘智 AI - 智能图像生成平台",
   "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#202020",
+  "theme_color": "#4080ff",
   "icons": [
+    {
+      "src": "/assets/huizhi-favicon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
     {
       "src": "/assets/images/huizhi-logo.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     }
   ],
-  "display": "standalone"
+  "categories": ["graphics", "productivity"],
+  "lang": "zh-CN"
 }

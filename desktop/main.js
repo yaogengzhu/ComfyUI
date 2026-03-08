@@ -764,7 +764,17 @@ function createMainWindow() {
         store.set('windowBounds', { width: bounds.width, height: bounds.height });
     });
 
+    // 点击即关：先阻止默认关闭（避免走到页面 beforeunload），再直接 destroy 关闭
+    mainWindow.on('close', (e) => {
+        console.log('[绘智/Electron] 主窗口 close 事件');
+        e.preventDefault();
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.destroy();
+        }
+    });
+
     mainWindow.on('closed', () => {
+        console.log('[绘智/Electron] 主窗口已关闭');
         mainWindow = null;
     });
 
@@ -1474,13 +1484,13 @@ app.whenReady().then(async () => {
 
 // 所有窗口关闭时退出（macOS 除外）
 app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin') {
-        app.quit();
-    }
+    console.log('[绘智/Electron] window-all-closed', { platform: process.platform });
+    app.quit();
 });
 
 // 应用退出前清理
-app.on('before-quit', () => {
+app.on('before-quit', (e) => {
+    console.log('[绘智/Electron] before-quit', { defaultPrevented: e.defaultPrevented });
     stopPythonServer();
 });
 
