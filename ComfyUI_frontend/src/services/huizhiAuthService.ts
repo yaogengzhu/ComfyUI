@@ -495,107 +495,108 @@ async function refreshComfyOrgToken(): Promise<void> {
 
 // ============= 绘智退出登录 =============
 // 先做同步清理并立即重定向，避免等待 Firebase/后端导致界面卡死；异步清理在后台执行不阻塞
+// 使用 try/finally 确保即使报错（如 api.comfy.org、Task cancelled 等）也不影响重定向
 export async function handleHuizhiLogout(confirmLogout = true): Promise<void> {
   if (confirmLogout && !confirm('确定要退出登录吗？')) {
     return
   }
 
-  console.log('[HuizhiAuth] ========== Starting logout ==========')
-
-  // 先保存 token，供后台登出请求使用（清除存储后无法再读）
-  const tokenForBackend =
-    localStorage.getItem(HUIZHI_STORAGE_KEYS.TOKEN) ||
-    localStorage.getItem('comfy_token')
-
-  // 设置退出标志，阻止 WS 重连
-  ;(window as any).__HUIZHI_LOGOUT_IN_PROGRESS__ = true
-  isLoggingOut.value = true
-
-  // 停止定时器
-  stopDeviceCheckPolling()
-  if (tokenRefreshTimer) {
-    clearTimeout(tokenRefreshTimer)
-    tokenRefreshTimer = null
-  }
-
-  // 关闭 WebSocket 并将 api.socket 置 null 防止重连
-  try {
-    const apiInstance = (window as any).app?.api
-    if (apiInstance) {
-      const socket = apiInstance.socket
-      if (socket && (socket.readyState === 0 || socket.readyState === 1)) {
-        socket.close(1000, 'User logout')
-      }
-      apiInstance.socket = null
-    }
-  } catch (e) { /* ignore */ }
-
-  // ========== 同步清理存储（不 await 任何网络/异步，避免卡死）==========
-  Object.values(HUIZHI_STORAGE_KEYS).forEach((key) => {
-    try { localStorage.removeItem(key) } catch (e) { /* ignore */ }
-  })
-  const keysToRemove = [
-    'comfy_user', 'comfy_refresh_token', 'huizhi_user_info',
-    'comfy_token', 'clientId'
-  ]
-  keysToRemove.forEach((key) => {
-    try { localStorage.removeItem(key) } catch (e) { /* ignore */ }
-  })
-  const allKeys: string[] = []
-  for (let i = 0; i < localStorage.length; i++) {
-    const k = localStorage.key(i)
-    if (k) allKeys.push(k)
-  }
-  allKeys.forEach((key) => {
-    if (key && (key.includes('firebase') || key.includes('comfy') || key.includes('huizhi'))) {
-      try { localStorage.removeItem(key) } catch (e) { /* ignore */ }
-    }
-  })
-
-  const cookiesToClear = ['comfy_token', 'huizhi_token', 'comfy_org_token']
-  cookiesToClear.forEach((cookieName) => {
-    document.cookie = `${cookieName}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`
-    document.cookie = `${cookieName}=; path=/; domain=${window.location.hostname}; expires=Thu, 01 Jan 1970 00:00:00 GMT`
-  })
-  document.cookie.split(';').forEach((cookie) => {
-    const name = cookie.split('=')[0].trim()
-    if (name) {
-      document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`
-    }
-  })
-
-  try { sessionStorage.clear() } catch (e) { /* ignore */ }
-  try { indexedDB.deleteDatabase('firebaseLocalStorageDb') } catch (e) { /* ignore */ }
-
   const loginUrl = `${window.location.origin}/login?logout=1&ts=${Date.now()}`
 
-  // ========== 立即重定向，不等待任何异步（避免卡死）==========
-  console.log('[HuizhiAuth] Storage cleared, redirecting to /login...')
-  setTimeout(() => {
+  const doRedirect = () => {
+    console.log('[HuizhiAuth] Redirecting to /login...')
     window.location.replace(loginUrl)
     setTimeout(() => {
       if (!window.location.pathname.startsWith('/login')) {
         window.location.href = loginUrl
       }
     }, 80)
-  }, 0)
-
-  // ========== 后台异步清理（不阻塞，不 await）==========
-  if (tokenForBackend) {
-    fetch('/api/auth/logout', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${tokenForBackend}`,
-        'Content-Type': 'application/json'
-      }
-    }).catch(() => { /* ignore */ })
   }
-  import('@/stores/firebaseAuthStore').then(({ useFirebaseAuthStore }) => {
-    const authStore = useFirebaseAuthStore()
-    if (authStore?.logout) authStore.logout().catch(() => {})
-  }).catch(() => {})
-  if ('caches' in window) {
-    caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k)))).catch(() => {})
+
+  try {
+    console.log('[HuizhiAuth] ========== Starting logout ==========')
+
+    // 先保存 token，供后台登出请求使用（清除存储后无法再读）
+    const tokenForBackend =
+      localStorage.getItem(HUIZHI_STORAGE_KEYS.TOKEN) ||
+      localStorage.getItem('comfy_token')
+
+    // 设置退出标志，阻止 WS 重连及执行错误弹窗
+    ;(window as any).__HUIZHI_LOGOUT_IN_PROGRESS__ = true
+    isLoggingOut.value = true
+
+    stopDeviceCheckPolling()
+    if (tokenRefreshTimer) {
+      clearTimeout(tokenRefreshTimer)
+      tokenRefreshTimer = null
+    }
+
+    try {
+      const apiInstance = (window as any).app?.api
+      if (apiInstance) {
+        const socket = apiInstance.socket
+        if (socket && (socket.readyState === 0 || socket.readyState === 1)) {
+          socket.close(1000, 'User logout')
+        }
+        apiInstance.socket = null
+      }
+    } catch (e) { /* ignore */ }
+
+    Object.values(HUIZHI_STORAGE_KEYS).forEach((key) => {
+      try { localStorage.removeItem(key) } catch (e) { /* ignore */ }
+    })
+    const keysToRemove = [
+      'comfy_user', 'comfy_refresh_token', 'huizhi_user_info',
+      'comfy_token', 'clientId'
+    ]
+    keysToRemove.forEach((key) => {
+      try { localStorage.removeItem(key) } catch (e) { /* ignore */ }
+    })
+    const allKeys: string[] = []
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i)
+      if (k) allKeys.push(k)
+    }
+    allKeys.forEach((key) => {
+      if (key && (key.includes('firebase') || key.includes('comfy') || key.includes('huizhi'))) {
+        try { localStorage.removeItem(key) } catch (e) { /* ignore */ }
+      }
+    })
+
+    const cookiesToClear = ['comfy_token', 'huizhi_token', 'comfy_org_token']
+    cookiesToClear.forEach((cookieName) => {
+      document.cookie = `${cookieName}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`
+      document.cookie = `${cookieName}=; path=/; domain=${window.location.hostname}; expires=Thu, 01 Jan 1970 00:00:00 GMT`
+    })
+    document.cookie.split(';').forEach((cookie) => {
+      const name = cookie.split('=')[0].trim()
+      if (name) {
+        document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`
+      }
+    })
+
+    try { sessionStorage.clear() } catch (e) { /* ignore */ }
+    try { indexedDB.deleteDatabase('firebaseLocalStorageDb') } catch (e) { /* ignore */ }
+
+    if (tokenForBackend) {
+      fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${tokenForBackend}`,
+          'Content-Type': 'application/json'
+        }
+      }).catch(() => { /* ignore */ })
+    }
+    import('@/stores/firebaseAuthStore').then(({ useFirebaseAuthStore }) => {
+      const authStore = useFirebaseAuthStore()
+      if (authStore?.logout) authStore.logout().catch(() => {})
+    }).catch(() => {})
+    if ('caches' in window) {
+      caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k)))).catch(() => {})
+    }
+  } finally {
+    // 无论 try 中是否抛错（如执行中报 Task cancelled、api.comfy.org 等），都保证跳转到登录页
+    setTimeout(doRedirect, 0)
   }
 }
 

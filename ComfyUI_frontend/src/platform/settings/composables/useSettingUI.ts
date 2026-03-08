@@ -100,8 +100,10 @@ export function useSettingUI(
   const CORE_CATEGORIES = new Set(CORE_CATEGORIES_ORDER)
 
   const coreSettingCategories = computed<SettingTreeNode[]>(() => {
-    const categories = settingCategories.value.filter((node) =>
-      CORE_CATEGORIES.has(node.label)
+    const categories = settingCategories.value.filter(
+      (node) =>
+        CORE_CATEGORIES.has(node.label) &&
+        node.label !== 'Comfy' // 绘智：隐藏 Comfy 设置入口
     )
     return categories.sort(
       (a, b) =>
@@ -224,11 +226,8 @@ export function useSettingUI(
 
   const panels = computed<SettingPanelItem[]>(() =>
     [
-      aboutPanel,
       creditsPanel,
       ...(shouldShowWorkspacePanel.value ? [workspacePanel] : []),
-      keybindingPanel,
-      extensionPanel,
       ...(isDesktop ? [serverConfigPanel] : []),
       ...(shouldShowPlanCreditsPanel.value && subscriptionPanel
         ? [subscriptionPanel]
@@ -254,11 +253,14 @@ export function useSettingUI(
       if (setting) {
         const { category } = getSettingInfo(setting)
         const found = settingCategories.value.find((c) => c.label === category)
-        if (found) return found
+        if (found && category !== 'Comfy') return found
       }
     }
 
-    return settingCategories.value[0]
+    return (
+      settingCategories.value.find((c) => c.label !== 'Comfy') ??
+      settingCategories.value[0]
+    )
   })
 
   const translateCategory = (node: SettingTreeNode) => ({
@@ -283,19 +285,15 @@ export function useSettingUI(
           : [])
       ].map(translateCategory)
     }),
-    // General settings - Profile + all core settings + special panels
+    // General settings - 绘智：不展示 Comfy、快捷键、扩展、关于
     translateCategory({
       key: 'general',
       label: 'General',
       children: [
-        ...coreSettingCategories.value.slice(0, 1).map(translateCategory),
         ...(shouldShowSecretsPanel.value
           ? [translateCategory(secretsPanel.node)]
           : []),
-        ...coreSettingCategories.value.slice(1).map(translateCategory),
-        translateCategory(keybindingPanel.node),
-        translateCategory(extensionPanel.node),
-        translateCategory(aboutPanel.node),
+        ...coreSettingCategories.value.map(translateCategory),
         ...(isDesktop ? [translateCategory(serverConfigPanel.node)] : [])
       ]
     }),
@@ -330,23 +328,24 @@ export function useSettingUI(
           : [])
       ].map(translateCategory)
     },
-    // Normal settings stored in the settingStore
+    // Normal settings - 绘智：隐藏 Comfy 入口
     {
       key: 'settings',
       label: 'Application Settings',
-      children: settingCategories.value.map(translateCategory)
+      children: settingCategories.value
+        .filter((c) => c.label !== 'Comfy')
+        .map(translateCategory)
     },
-    // Special settings such as about, keybinding, extension, server-config
-    {
-      key: 'specialSettings',
-      label: 'Special Settings',
-      children: [
-        keybindingPanel.node,
-        extensionPanel.node,
-        aboutPanel.node,
-        ...(isDesktop ? [serverConfigPanel.node] : [])
-      ].map(translateCategory)
-    }
+    // Special settings - 绘智：隐藏快捷键、扩展、关于，仅保留服务端配置(桌面)；无子项时不显示该分组
+    ...(isDesktop
+      ? [
+          {
+            key: 'specialSettings',
+            label: 'Special Settings',
+            children: [serverConfigPanel.node].map(translateCategory)
+          }
+        ]
+      : [])
   ])
 
   const groupedMenuTreeNodes = computed<SettingTreeNode[]>(() =>

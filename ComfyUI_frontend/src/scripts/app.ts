@@ -732,6 +732,8 @@ export class ComfyApp {
     })
 
     api.addEventListener('execution_error', ({ detail }) => {
+      // [绘智] 退出登录过程中不处理执行错误，避免弹窗阻塞登出
+      if ((window as any).__HUIZHI_LOGOUT_IN_PROGRESS__) return
       // Check if this is an auth-related error or credits-related error
       if (
         detail.exception_message?.includes(
