@@ -1,10 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 
-import { useAssetsSidebarTab } from '@/composables/sidebarTabs/useAssetsSidebarTab'
 import { useJobHistorySidebarTab } from '@/composables/sidebarTabs/useJobHistorySidebarTab'
-import { useModelLibrarySidebarTab } from '@/composables/sidebarTabs/useModelLibrarySidebarTab'
-import { useNodeLibrarySidebarTab } from '@/composables/sidebarTabs/useNodeLibrarySidebarTab'
 import { t, te } from '@/i18n'
 import { useSettingStore } from '@/platform/settings/settingStore'
 import { useWorkflowsSidebarTab } from '@/platform/workflow/management/composables/useWorkflowsSidebarTab'
@@ -131,9 +128,10 @@ export const useSidebarTabStore = defineStore('sidebarTab', () => {
       (enabled) => syncJobHistoryTab(enabled)
     )
 
-    registerSidebarTab(useAssetsSidebarTab())
-    registerSidebarTab(useNodeLibrarySidebarTab())
-    registerSidebarTab(useModelLibrarySidebarTab())
+    // 绘智：仅保留工作流，去掉资产、节点、模型
+    // registerSidebarTab(useAssetsSidebarTab())
+    // registerSidebarTab(useNodeLibrarySidebarTab())
+    // registerSidebarTab(useModelLibrarySidebarTab())
     registerSidebarTab(useWorkflowsSidebarTab())
 
     const menuStore = useMenuItemStore()
