@@ -843,7 +843,9 @@ function startPythonServer() {
         
         const args = [
             mainScript,
-            '--port', SERVER_PORT.toString()
+            '--port', SERVER_PORT.toString(),
+            // 桌面版默认禁用所有 external custom_nodes，避免缺少目录时报错
+            '--disable-all-custom-nodes'
         ];
         
         // 根据设置添加参数
