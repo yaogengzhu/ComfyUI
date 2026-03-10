@@ -17,6 +17,11 @@ if (process.platform === 'win32') {
     try { execSync('chcp 65001', { stdio: 'pipe' }); } catch (e) { /* ignore */ }
 }
 
+// 在 Windows / Linux 上默认移除全局应用菜单（避免显示 "File / Edit / View / Window / Help"）
+if (process.platform !== 'darwin') {
+    Menu.setApplicationMenu(null);
+}
+
 // 自动安装器
 const AutoInstaller = require('./scripts/auto-installer.js');
 
