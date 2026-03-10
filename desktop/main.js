@@ -749,6 +749,9 @@ function createMainWindow() {
         height,
         minWidth: 1024,
         minHeight: 768,
+        // 使用系统原生标题栏（包含关闭/最小化/最大化按钮）
+        // 菜单栏本身在 createMenu 中已通过 Menu.setApplicationMenu(null) 隐藏
+        frame: true,
         show: false,
         icon: path.join(__dirname, 'assets', 'icon.png'),
         webPreferences: {
@@ -779,91 +782,18 @@ function createMainWindow() {
     });
 
     // 创建菜单
-    createMenu();
+    // createMenu();
 }
 
 // 创建应用菜单
 function createMenu() {
-    const template = [
-        {
-            label: '绘智 AI',
-            submenu: [
-                { label: '关于 绘智 AI', role: 'about' },
-                { type: 'separator' },
-                {
-                    label: '设置向导',
-                    click: () => {
-                        if (!setupWindow) {
-                            createSetupWindow();
-                        } else {
-                            setupWindow.focus();
-                        }
-                    }
-                },
-                {
-                    label: '模型管理',
-                    click: () => openModelManager()
-                },
-                { type: 'separator' },
-                {
-                    label: '打开模型目录',
-                    click: () => shell.openPath(getModelsPath())
-                },
-                { type: 'separator' },
-                { label: '退出', role: 'quit' }
-            ]
-        },
-        {
-            label: '编辑',
-            submenu: [
-                { label: '撤销', role: 'undo' },
-                { label: '重做', role: 'redo' },
-                { type: 'separator' },
-                { label: '剪切', role: 'cut' },
-                { label: '复制', role: 'copy' },
-                { label: '粘贴', role: 'paste' }
-            ]
-        },
-        {
-            label: '视图',
-            submenu: [
-                { label: '重新加载', role: 'reload' },
-                { label: '强制重新加载', role: 'forceReload' },
-                { type: 'separator' },
-                { label: '实际大小', role: 'resetZoom' },
-                { label: '放大', role: 'zoomIn' },
-                { label: '缩小', role: 'zoomOut' },
-                { type: 'separator' },
-                { label: '全屏', role: 'togglefullscreen' }
-            ]
-        },
-        {
-            label: '开发',
-            submenu: [
-                { label: '开发者工具', role: 'toggleDevTools' }
-            ]
-        },
-        {
-            label: '帮助',
-            submenu: [
-                {
-                    label: '文档',
-                    click: async () => {
-                        await shell.openExternal('https://docs.comfy.org');
-                    }
-                },
-                {
-                    label: 'GitHub',
-                    click: async () => {
-                        await shell.openExternal('https://github.com/comfyanonymous/ComfyUI');
-                    }
-                }
-            ]
-        }
-    ];
-
-    const menu = Menu.buildFromTemplate(template);
-    Menu.setApplicationMenu(menu);
+    // Windows 上隐藏原生菜单栏，只在 macOS 保留菜单栏体验
+    if (process.platform === 'darwin') {
+        const menu = Menu.buildFromTemplate(template);
+        Menu.setApplicationMenu(menu);
+    } else {
+        Menu.setApplicationMenu(null);
+    }
 }
 
 // 创建系统托盘
