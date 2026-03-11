@@ -1,0 +1,193 @@
+# 绘智 AI Desktop - Electron 打包与发布
+# 在 CI 中构建 Windows / macOS / Linux 安装包，并上传为 Artifacts 或 Release
+
+name: Electron Desktop Build & Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本号（用于 Release 名称，如 1.0.0）'
+        required: false
+        type: string
+        default: ''
+      platform:
+        description: '构建平台'
+        required: true
+        type: choice
+        options:
+          - all
+          - win
+          - mac
+          - linux
+        default: all
+      upload_release:
+        description: '是否创建/更新 Release 并上传安装包'
+        required: false
+        type: boolean
+        default: false
+  push:
+    tags:
+      - 'desktop/v*'
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  build-win:
+    name: Build Electron (win)
+    runs-on: windows-latest
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'win' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: desktop/package-lock.json
+
+      - name: Install dependencies (desktop)
+        run: npm ci || npm install
+        working-directory: desktop
+
+      - name: Build Electron (win)
+        run: npm run build:win
+        working-directory: desktop
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '0'
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: List build outputs
+        run: dir desktop\dist
+        shell: cmd
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-win
+          path: desktop/dist/
+
+  build-mac:
+    name: Build Electron (mac)
+    runs-on: macos-latest
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'mac' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: desktop/package-lock.json
+
+      - name: Install dependencies (desktop)
+        run: npm ci || npm install
+        working-directory: desktop
+
+      - name: Build Electron (mac)
+        run: npm run build:mac
+        working-directory: desktop
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '0'
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: List build outputs
+        run: ls -la desktop/dist
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-mac
+          path: desktop/dist/
+
+  build-linux:
+    name: Build Electron (linux)
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'linux' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: desktop/package-lock.json
+
+      - name: Install dependencies (desktop)
+        run: npm ci || npm install
+        working-directory: desktop
+
+      - name: Build Electron (linux)
+        run: npm run build:linux
+        working-directory: desktop
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '0'
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: List build outputs
+        run: ls -la desktop/dist
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-linux
+          path: desktop/dist/
+
+  # 可选：当勾选 upload_release 或通过 tag 触发时，创建 Release 并上传所有平台的包
+  release:
+    name: Create Release & Upload
+    needs: [build-win, build-mac, build-linux]
+    if: |
+      always() &&
+      (needs.build-win.result == 'success' || needs.build-mac.result == 'success' || needs.build-linux.result == 'success') &&
+      (github.event.inputs.upload_release == 'true' || startsWith(github.ref, 'refs/tags/desktop/'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Determine release version
+        id: version
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ github.ref }}" == refs/tags/desktop/* ]]; then
+            echo "version=${GITHUB_REF#refs/tags/desktop/v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=ci-$(date +%Y%m%d-%H%M)" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: desktop/v${{ steps.version.outputs.version }}
+          name: 绘智AI Desktop v${{ steps.version.outputs.version }}
+          body: |
+            ## 绘智 AI Desktop
+            由 GitHub Actions 自动构建的 Electron 安装包。
+            - **Windows**: 请下载 `desktop-win` 中的 .exe 或 portable
+            - **macOS**: 请下载 `desktop-mac` 中的 .dmg
+            - **Linux**: 请下载 `desktop-linux` 中的 .AppImage 或 .deb
+          draft: false
+          prerelease: false
+          files: artifacts/**/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
