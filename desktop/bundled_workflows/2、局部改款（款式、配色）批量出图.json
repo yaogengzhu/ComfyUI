@@ -1,0 +1,641 @@
+{
+  "id": "cd493e27-dd63-4c70-98ce-a77f7ffcc1e3",
+  "revision": 0,
+  "last_node_id": 55,
+  "last_link_id": 91,
+  "nodes": [
+    {
+      "id": 52,
+      "type": "easy batchAnything",
+      "pos": [
+        2600.058978061493,
+        132.53501273206678
+      ],
+      "size": [
+        140,
+        46
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "any_1",
+          "type": "*",
+          "link": 86
+        },
+        {
+          "name": "any_2",
+          "type": "*",
+          "link": 87
+        }
+      ],
+      "outputs": [
+        {
+          "name": "batch",
+          "type": "*",
+          "links": [
+            88
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "easy batchAnything",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.7"
+        }
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 50,
+      "type": "ImpactLogger",
+      "pos": [
+        2814.889495033997,
+        -19.781114567824297
+      ],
+      "size": [
+        210,
+        88
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "data",
+          "type": "*",
+          "link": 84
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "ImpactLogger",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.7"
+        }
+      },
+      "widgets_values": [
+        "2047483100"
+      ]
+    },
+    {
+      "id": 35,
+      "type": "easy forLoopEnd",
+      "pos": [
+        2569.555565774212,
+        -21.649568261371506
+      ],
+      "size": [
+        164.203125,
+        86
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "flow",
+          "shape": 5,
+          "type": "FLOW_CONTROL",
+          "link": 32
+        },
+        {
+          "name": "initial_value1",
+          "shape": 7,
+          "type": "*",
+          "link": 81
+        },
+        {
+          "name": "initial_value2",
+          "type": "*",
+          "link": 88
+        },
+        {
+          "name": "initial_value3",
+          "type": "*",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "value1",
+          "type": "*",
+          "links": [
+            84
+          ]
+        },
+        {
+          "name": "value2",
+          "type": "*",
+          "links": [
+            90
+          ]
+        },
+        {
+          "name": "value3",
+          "type": "*",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "easy forLoopEnd",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.7"
+        }
+      },
+      "widgets_values": [],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 26,
+      "type": "SaveImage",
+      "pos": [
+        2607.6309222571444,
+        307.6867798814635
+      ],
+      "size": [
+        492.5458068576147,
+        438.8796321177139
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 20
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "SaveImage",
+        "cnr_id": "comfy-core",
+        "ver": "0.14.1",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.7",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "Seedream5.0_lite"
+      ]
+    },
+    {
+      "id": 29,
+      "type": "LoadImage",
+      "pos": [
+        1447.4900781940162,
+        288.68527401441804
+      ],
+      "size": [
+        430.48783303017797,
+        485.92019303157986
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            85
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "title": "输入客户图像",
+      "properties": {
+        "Node name for S&R": "LoadImage",
+        "cnr_id": "comfy-core",
+        "ver": "0.14.1",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.7",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "微信图片_20260303151041_619_31.png",
+        "image"
+      ]
+    },
+    {
+      "id": 54,
+      "type": "PreviewImage",
+      "pos": [
+        3161.2687104669685,
+        -18.169560152733556
+      ],
+      "size": [
+        501.4501178781529,
+        469.34747991962513
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 90
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "PreviewImage",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.7"
+        }
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 34,
+      "type": "easy forLoopStart",
+      "pos": [
+        1449.577312742265,
+        -14.61694249459852
+      ],
+      "size": [
+        270,
+        188
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "initial_value1",
+          "shape": 7,
+          "type": "*",
+          "link": 55
+        },
+        {
+          "name": "initial_value2",
+          "type": "*",
+          "link": null
+        },
+        {
+          "name": "initial_value3",
+          "type": "*",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "flow",
+          "shape": 5,
+          "type": "FLOW_CONTROL",
+          "links": [
+            32
+          ]
+        },
+        {
+          "name": "index",
+          "type": "INT",
+          "links": []
+        },
+        {
+          "name": "value1",
+          "type": "*",
+          "links": [
+            80
+          ]
+        },
+        {
+          "name": "value2",
+          "type": "*",
+          "links": [
+            86
+          ]
+        },
+        {
+          "name": "value3",
+          "type": "*",
+          "links": null
+        }
+      ],
+      "title": "设置出图数量",
+      "properties": {
+        "Node name for S&R": "easy forLoopStart",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.7"
+        }
+      },
+      "widgets_values": [
+        10
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 25,
+      "type": "ByteDanceSeedreamNode",
+      "pos": [
+        2081.4395360655058,
+        286.99671037353227
+      ],
+      "size": [
+        400,
+        470
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 85
+        },
+        {
+          "name": "seed",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "seed"
+          },
+          "link": 91
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            20,
+            87
+          ]
+        }
+      ],
+      "title": "输入客户需求",
+      "properties": {
+        "Node name for S&R": "ByteDanceSeedreamNode",
+        "cnr_id": "comfy-core",
+        "ver": "0.14.1",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "seed": true
+          },
+          "version": "7.7",
+          "input_ue_unconnectable": {},
+          "output_not_broadcasting": {}
+        },
+        "ue_convert": true
+      },
+      "widgets_values": [
+        "seedream 5.0 lite",
+        "床头软包更换款式，必须保持产品其他部份的颜色不变、比例不变、材质不变、光线自然",
+        "2048x2048 (1:1)",
+        2048,
+        2048,
+        "disabled",
+        1,
+        1834779894,
+        "randomize",
+        false,
+        true
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 44,
+      "type": "PrimitiveInt",
+      "pos": [
+        1769.554053740704,
+        -13.736604406152543
+      ],
+      "size": [
+        270,
+        82
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "INT",
+          "type": "INT",
+          "links": [
+            55
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PrimitiveInt",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.7"
+        }
+      },
+      "widgets_values": [
+        20000000000,
+        "fixed"
+      ]
+    },
+    {
+      "id": 49,
+      "type": "MathExpression|pysssss",
+      "pos": [
+        2088.622289626314,
+        -7.535789373026025
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "a",
+          "shape": 7,
+          "type": "INT,FLOAT,IMAGE,LATENT",
+          "link": 80
+        },
+        {
+          "name": "b",
+          "shape": 7,
+          "type": "INT,FLOAT,IMAGE,LATENT",
+          "link": null
+        },
+        {
+          "name": "c",
+          "shape": 7,
+          "type": "INT,FLOAT,IMAGE,LATENT",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "INT",
+          "type": "INT",
+          "links": [
+            81,
+            91
+          ]
+        },
+        {
+          "name": "FLOAT",
+          "type": "FLOAT",
+          "links": null
+        }
+      ],
+      "properties": {
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.7"
+        }
+      },
+      "widgets_values": [
+        "a + 132183712"
+      ]
+    }
+  ],
+  "links": [
+    [
+      20,
+      25,
+      0,
+      26,
+      0,
+      "IMAGE"
+    ],
+    [
+      32,
+      34,
+      0,
+      35,
+      0,
+      "FLOW_CONTROL"
+    ],
+    [
+      55,
+      44,
+      0,
+      34,
+      0,
+      "INT"
+    ],
+    [
+      80,
+      34,
+      2,
+      49,
+      0,
+      "INT,FLOAT,IMAGE,LATENT"
+    ],
+    [
+      81,
+      49,
+      0,
+      35,
+      1,
+      "INT"
+    ],
+    [
+      84,
+      35,
+      0,
+      50,
+      0,
+      "*"
+    ],
+    [
+      85,
+      29,
+      0,
+      25,
+      0,
+      "IMAGE"
+    ],
+    [
+      86,
+      34,
+      3,
+      52,
+      0,
+      "*"
+    ],
+    [
+      87,
+      25,
+      0,
+      52,
+      1,
+      "IMAGE"
+    ],
+    [
+      88,
+      52,
+      0,
+      35,
+      2,
+      "*"
+    ],
+    [
+      90,
+      35,
+      1,
+      54,
+      0,
+      "IMAGE"
+    ],
+    [
+      91,
+      49,
+      0,
+      25,
+      1,
+      "INT"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.4315005345051273,
+      "offset": [
+        6.816019152322245,
+        717.5017897639212
+      ]
+    },
+    "frontendVersion": "1.39.19",
+    "workflowRendererVersion": "LG",
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true,
+    "ue_links": [],
+    "links_added_by_ue": []
+  },
+  "version": 0.4
+}

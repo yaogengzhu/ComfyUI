@@ -13,7 +13,8 @@
     "build:win": "electron-builder --win",
     "build:linux": "electron-builder --linux",
     "setup-python": "bash scripts/setup-python-env.sh",
-    "reset-config": "node -e \"require('electron-store').default && new (require('electron-store'))().clear()\""
+    "reset-config": "node -e \"require('electron-store').default && new (require('electron-store'))().clear()\"",
+    "copy-workflows": "node -e \"const fs=require('fs');const path=require('path');const src=path.join(__dirname,'../user/default/workflows');const dest=path.join(__dirname,'bundled_workflows');if(!fs.existsSync(dest))fs.mkdirSync(dest,{recursive:true});if(fs.existsSync(src)){fs.readdirSync(src).filter(f=>f.endsWith('.json')).forEach(f=>fs.copyFileSync(path.join(src,f),path.join(dest,f)));console.log('Workflows copied to desktop/bundled_workflows');} else console.log('No user/default/workflows found');\""
   },
   "dependencies": {
     "electron-store": "^8.1.0",
@@ -54,14 +55,19 @@
           "!ComfyUI_frontend/node_modules/**",
           "!ComfyUI_frontend/.nx/**",
           "!ComfyUI_frontend/coverage/**",
-          "!ComfyUI_frontend/packages/*/node_modules/**",
           "!ComfyUI_frontend/apps/*/node_modules/**",
+          "!ComfyUI_frontend/packages/*/node_modules/**",
           "!venv/**",
           "!.venv/**",
           "!**/venv/**",
           "!custom_nodes/**",
           "!user/**"
         ]
+      },
+      {
+        "from": "bundled_workflows",
+        "to": "comfyui/user/default/workflows",
+        "filter": ["**/*.json"]
       }
     ],
     "mac": {
