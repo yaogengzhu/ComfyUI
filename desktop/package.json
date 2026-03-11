@@ -8,10 +8,11 @@
   "scripts": {
     "start": "electron .",
     "start:dev": "NODE_ENV=development electron .",
-    "build": "electron-builder",
-    "build:mac": "electron-builder --mac",
-    "build:win": "electron-builder --win",
-    "build:linux": "electron-builder --linux",
+    "make:assets": "node scripts/build-python-env.js",
+    "build": "node scripts/build-python-env.js && electron-builder",
+    "build:mac": "node scripts/build-python-env.js && electron-builder --mac",
+    "build:win": "node scripts/build-python-env.js && electron-builder --win",
+    "build:linux": "node scripts/build-python-env.js && electron-builder --linux",
     "setup-python": "bash scripts/setup-python-env.sh",
     "reset-config": "node -e \"require('electron-store').default && new (require('electron-store'))().clear()\"",
     "copy-workflows": "node -e \"const fs=require('fs');const path=require('path');const src=path.join(__dirname,'../user/default/workflows');const dest=path.join(__dirname,'bundled_workflows');if(!fs.existsSync(dest))fs.mkdirSync(dest,{recursive:true});if(fs.existsSync(src)){fs.readdirSync(src).filter(f=>f.endsWith('.json')).forEach(f=>fs.copyFileSync(path.join(src,f),path.join(dest,f)));console.log('Workflows copied to desktop/bundled_workflows');} else console.log('No user/default/workflows found');\""
@@ -37,6 +38,7 @@
       "splash.html",
       "setup-wizard.html",
       "scripts",
+      "python_env",
       "assets"
     ],
     "extraResources": [
