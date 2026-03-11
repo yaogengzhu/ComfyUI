@@ -68,6 +68,30 @@ class AutoInstaller {
         this.gpuType = options.gpuType || this.detectGpuType();
     }
 
+    // ============ 路径与目录辅助 ============
+
+    /**
+     * 确保目标路径是目录（若已存在且为文件则先删除再创建，避免 Windows 下 ENOTDIR）
+     */
+    ensureDir(dirPath) {
+        if (!dirPath) return;
+        const stat = fs.existsSync(dirPath) ? fs.statSync(dirPath) : null;
+        if (stat && stat.isFile()) {
+            fs.unlinkSync(dirPath);
+        }
+        if (!fs.existsSync(dirPath)) {
+            fs.mkdirSync(dirPath, { recursive: true });
+        }
+    }
+
+    /**
+     * 获取 Windows 下 tar -C 可用的路径（避免反斜杠与引号问题）
+     */
+    getTarSafePath(dirPath) {
+        if (this.platform !== 'win32') return dirPath;
+        return path.resolve(dirPath).replace(/\\/g, '/');
+    }
+
     // ============ 路径获取 ============
 
     /**
@@ -221,11 +245,9 @@ class AutoInstaller {
         return new Promise((resolve, reject) => {
             this.onLog(`[下载] ${description || url}`);
             
-            // 确保目录存在
+            // 确保目录存在且为目录（若为文件则先删除，避免 Windows ENOTDIR）
             const dir = path.dirname(destPath);
-            if (!fs.existsSync(dir)) {
-                fs.mkdirSync(dir, { recursive: true });
-            }
+            this.ensureDir(dir);
             
             const file = createWriteStream(destPath);
             const protocol = url.startsWith('https') ? https : http;
@@ -310,17 +332,21 @@ class AutoInstaller {
     async extractTarGz(filePath, destDir) {
         this.onLog(`[解压] ${path.basename(filePath)}`);
         
-        if (!fs.existsSync(destDir)) {
-            fs.mkdirSync(destDir, { recursive: true });
-        }
+        // 确保目标为目录（若为文件则删除再建，避免 Windows ENOTDIR）
+        this.ensureDir(destDir);
+        
+        const destDirResolved = path.resolve(destDir);
+        const tarDestDir = this.getTarSafePath(destDirResolved);
+        const tarFilePath = this.getTarSafePath(path.resolve(filePath));
         
         return new Promise((resolve, reject) => {
             // 使用系统 tar 命令 (更可靠)
             try {
                 if (this.platform === 'win32') {
-                    // Windows: 使用 tar 命令 (Windows 10+ 自带)
-                    execSync(`tar -xzf "${filePath}" -C "${destDir}"`, {
-                        stdio: 'pipe'
+                    // Windows: 使用 tar 命令 (Windows 10+ 自带)，用正斜杠路径减少 ENOTDIR
+                    execSync(`tar -xzf "${tarFilePath}" -C "${tarDestDir}"`, {
+                        stdio: 'pipe',
+                        windowsHide: true
                     });
                 } else {
                     execSync(`tar -xzf "${filePath}" -C "${destDir}"`, {
@@ -330,9 +356,10 @@ class AutoInstaller {
                 this.onLog(`[完成] 解压完成`);
                 resolve();
             } catch (err) {
-                // 备用方案: 使用 Node.js 流
+                // 备用方案: 使用 Node.js 流（确保 cwd 是目录）
+                this.ensureDir(destDirResolved);
                 const gunzip = zlib.createGunzip();
-                const extract = require('tar').extract({ cwd: destDir });
+                const extract = require('tar').extract({ cwd: destDirResolved });
                 
                 createReadStream(filePath)
                     .pipe(gunzip)
@@ -352,9 +379,7 @@ class AutoInstaller {
     async extractZip(filePath, destDir) {
         this.onLog(`[解压] ${path.basename(filePath)}`);
         
-        if (!fs.existsSync(destDir)) {
-            fs.mkdirSync(destDir, { recursive: true });
-        }
+        this.ensureDir(destDir);
         
         // Windows 使用 PowerShell 解压
         if (this.platform === 'win32') {
@@ -374,6 +399,9 @@ class AutoInstaller {
     async installPython() {
         this.onProgress({ stage: 'python', message: '正在下载 Python 环境...' });
         this.onLog(`\n========== 安装 Python ${PYTHON_VERSION} ==========`);
+        
+        // 确保安装目录存在且为目录（避免 Windows 下 python_env 为文件时出现 ENOTDIR）
+        this.ensureDir(this.pythonEnvDir);
         
         const url = this.getDownloadUrl('python');
         const tempFile = path.join(this.pythonEnvDir, 'python.tar.gz');

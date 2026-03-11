@@ -116,18 +116,7 @@ export function useSettingUI(
     settingCategories.value.filter((node) => !CORE_CATEGORIES.has(node.label))
   )
 
-  // Define panel items
-  const aboutPanel: SettingPanelItem = {
-    node: {
-      key: 'about',
-      label: 'About',
-      children: []
-    },
-    component: defineAsyncComponent(
-      () => import('@/components/dialog/content/setting/AboutPanel.vue')
-    )
-  }
-
+  // Define panel items（绘智：已隐藏 about/keybinding/extension，不定义对应 panel）
   const creditsPanel: SettingPanelItem = {
     node: {
       key: 'credits',
@@ -190,28 +179,6 @@ export function useSettingUI(
   const shouldShowSecretsPanel = computed(
     () => flags.userSecretsEnabled && isLoggedIn.value
   )
-
-  const keybindingPanel: SettingPanelItem = {
-    node: {
-      key: 'keybinding',
-      label: 'Keybinding',
-      children: []
-    },
-    component: defineAsyncComponent(
-      () => import('@/components/dialog/content/setting/KeybindingPanel.vue')
-    )
-  }
-
-  const extensionPanel: SettingPanelItem = {
-    node: {
-      key: 'extension',
-      label: 'Extension',
-      children: []
-    },
-    component: defineAsyncComponent(
-      () => import('@/platform/settings/components/ExtensionPanel.vue')
-    )
-  }
 
   const serverConfigPanel: SettingPanelItem = {
     node: {
